@@ -6,6 +6,7 @@ import {
   BookOpen,
   FlaskConical,
   Crown,
+  Trophy,
   Lock,
   Star,
   Play,
@@ -18,7 +19,7 @@ import { getLevels, getPlayer } from "@/lib/api";
 import { getPlayerId } from "@/lib/gameStore";
 import { playMusic } from "@/lib/sound";
 
-const ICON_MAP = { TreePine, Music, BookOpen, FlaskConical, Crown };
+const ICON_MAP = { TreePine, Music, BookOpen, FlaskConical, Crown, Trophy };
 
 export default function LevelMap() {
   const navigate = useNavigate();
