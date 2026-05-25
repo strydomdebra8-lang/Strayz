@@ -370,6 +370,7 @@ export default function GamePlay() {
               puzzles={puzzles}
               solvedIds={solvedIds}
               currentIdx={idx}
+              characterId={characterId}
               onPick={(i) => {
                 if (i === idx) {
                   setShowScene(false);

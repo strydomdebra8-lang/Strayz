@@ -53,55 +53,131 @@ export const sfx = {
   lineClear: () => chord([783.99, 987.77, 1174.66], { dur: 0.18, type: "sine", vol: 0.2 }),
 };
 
-// --- Background music using Howler (royalty-free Mixkit CDN) ---
-let bgInstance = null;
+// --- Procedural background music using Web Audio API ---
+// 100% reliable, no external CDN dependencies. Each track is a layered
+// looping pad + arpeggio in a different key/mood.
+let bgState = null; // { stop: () => void, trackKey: string }
 
-const BG_TRACKS = {
-  menu: "https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3",
-  level: "https://assets.mixkit.co/music/preview/mixkit-game-show-suspense-waiting-668.mp3",
-  endless: "https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3",
+const SCALES = {
+  // [bass note Hz, chord intervals, arpeggio melody freqs]
+  menu: {
+    bass: 130.81, // C3
+    pad: [196.0, 246.94, 293.66], // G3 B3 D4
+    melody: [523.25, 587.33, 659.25, 783.99, 880.0, 783.99, 659.25, 587.33],
+    bpm: 78,
+  },
+  level: {
+    bass: 110.0, // A2
+    pad: [164.81, 220.0, 246.94], // E3 A3 B3
+    melody: [440.0, 523.25, 587.33, 659.25, 587.33, 523.25, 440.0, 392.0],
+    bpm: 96,
+  },
+  endless: {
+    bass: 146.83, // D3
+    pad: [220.0, 277.18, 329.63], // A3 C#4 E4
+    melody: [587.33, 659.25, 698.46, 880.0, 698.46, 659.25, 587.33, 523.25],
+    bpm: 88,
+  },
 };
+
+function startProceduralTrack(trackKey) {
+  const ac = ctx();
+  if (!ac) return null;
+  if (ac.state === "suspended") {
+    ac.resume().catch(() => {});
+  }
+  const cfg = SCALES[trackKey] || SCALES.menu;
+  const master = ac.createGain();
+  master.gain.value = 0.18;
+  master.connect(ac.destination);
+
+  const oscillators = [];
+  const timers = [];
+
+  // Pad (slow attack/release continuous chord)
+  cfg.pad.forEach((freq) => {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    gain.gain.value = 0.08;
+    osc.connect(gain).connect(master);
+    osc.start();
+    oscillators.push(osc);
+  });
+
+  // Slow bass pulse
+  const bass = ac.createOscillator();
+  const bassGain = ac.createGain();
+  bass.type = "triangle";
+  bass.frequency.value = cfg.bass;
+  bassGain.gain.value = 0.0;
+  bass.connect(bassGain).connect(master);
+  bass.start();
+  oscillators.push(bass);
+  const beatMs = (60 / cfg.bpm) * 1000;
+  const bassPulse = setInterval(() => {
+    const t = ac.currentTime;
+    bassGain.gain.cancelScheduledValues(t);
+    bassGain.gain.setValueAtTime(0.12, t);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+  }, beatMs * 2);
+  timers.push(bassPulse);
+
+  // Melody arpeggio
+  let step = 0;
+  const melodyTick = setInterval(() => {
+    if (!getSoundEnabled()) return;
+    const freq = cfg.melody[step % cfg.melody.length];
+    const t = ac.currentTime;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+    osc.connect(g).connect(master);
+    osc.start(t);
+    osc.stop(t + 0.45);
+    step++;
+  }, beatMs);
+  timers.push(melodyTick);
+
+  return {
+    trackKey,
+    stop: () => {
+      timers.forEach((t) => clearInterval(t));
+      oscillators.forEach((o) => {
+        try {
+          o.stop();
+        } catch {
+          // ignore
+        }
+      });
+      try {
+        master.disconnect();
+      } catch {
+        // ignore
+      }
+    },
+  };
+}
 
 export async function playMusic(trackKey = "menu") {
   if (!getSoundEnabled()) {
     stopMusic();
     return;
   }
-  if (bgInstance?._trackKey === trackKey) return;
+  if (bgState?.trackKey === trackKey) return;
   stopMusic();
-  const url = BG_TRACKS[trackKey];
-  if (!url) return;
-  try {
-    const { Howl } = await import("howler");
-    bgInstance = new Howl({
-      src: [url],
-      html5: true,
-      loop: true,
-      volume: 0.22,
-      onloaderror: () => {
-        // Fail silently — game still works without music
-        bgInstance = null;
-      },
-      onplayerror: () => {
-        bgInstance = null;
-      },
-    });
-    bgInstance._trackKey = trackKey;
-    bgInstance.play();
-  } catch {
-    // ignore
-  }
+  bgState = startProceduralTrack(trackKey);
 }
 
 export function stopMusic() {
-  if (bgInstance) {
-    try {
-      bgInstance.stop();
-      bgInstance.unload();
-    } catch {
-      // ignore
-    }
-    bgInstance = null;
+  if (bgState) {
+    bgState.stop();
+    bgState = null;
   }
 }
 

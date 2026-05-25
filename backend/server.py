@@ -160,18 +160,23 @@ async def get_levels():
             "description": "The mastermind's lair! Bring everything you've learned to this final test.",
             "background": "level_5",
         },
+        {
+            "id": 6,
+            "name": "Sports Arena",
+            "subject": "Sports & Endurance",
+            "color": "#22D3EE",
+            "icon": "Trophy",
+            "description": "A legendary trophy has been stolen from the great Sports Arena. Coach Arthur leads the charge!",
+            "background": "level_6",
+        },
     ]
     return {"levels": levels}
 
 
 @api_router.get("/puzzles/{level}")
 async def get_puzzles_for_level(level: int, difficulty: str = "medium"):
-    """Return puzzles for a given level (without revealing answers).
-
-    Interleaves categories so two consecutive puzzles are never the same
-    subject (e.g. avoids math -> math -> math runs).
-    """
-    if level < 1 or level > 5:
+    """Return puzzles for a given level (without revealing answers)."""
+    if level < 1 or level > 6:
         raise HTTPException(status_code=400, detail="Invalid level")
 
     puzzles = [p for p in _PUZZLE_CACHE if p["level"] == level]

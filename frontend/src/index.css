@@ -130,6 +130,21 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 .animate-celebrate { animation: celebrate 0.6s ease-out both; }
 
+@keyframes walk-bob {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-6px) rotate(2deg); }
+}
+.animate-walk-bob { animation: walk-bob 0.45s ease-in-out infinite; }
+
+@keyframes walk-cross {
+    0% { left: -10%; transform: scaleX(1); }
+    49% { left: 95%; transform: scaleX(1); }
+    50% { left: 95%; transform: scaleX(-1); }
+    99% { left: -10%; transform: scaleX(-1); }
+    100% { left: -10%; transform: scaleX(1); }
+}
+.animate-walk-cross { animation: walk-cross 18s linear infinite; }
+
 ::selection {
     background-color: #FBBF24;
     color: #1E3A8A;

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import * as Lucide from "lucide-react";
 import { LEVEL_HOTSPOTS } from "@/data/hotspots";
+import { CHARACTERS } from "@/data/storyData";
 import { sfx } from "@/lib/sound";
 
 export default function HotspotScene({
@@ -10,10 +11,11 @@ export default function HotspotScene({
   solvedIds,
   currentIdx,
   onPick,
+  characterId,
 }) {
   const hotspots = LEVEL_HOTSPOTS[levelId] || [];
+  const character = CHARACTERS.find((c) => c.id === characterId) || CHARACTERS[0];
   const mapping = useMemo(() => {
-    // Map each hotspot to the puzzle at the same index (if exists)
     return hotspots.map((h, i) => ({
       ...h,
       puzzleIndex: i < puzzles.length ? i : null,
@@ -33,6 +35,25 @@ export default function HotspotScene({
       }}
       data-testid="hotspot-scene"
     >
+      {/* Walking character along the bottom of the scene */}
+      <div
+        className="absolute bottom-3 animate-walk-cross pointer-events-none"
+        style={{ width: 60, height: 60 }}
+        data-testid="walking-character"
+      >
+        <div className="w-full h-full rounded-full border-4 border-slate-800 overflow-hidden bg-white tactile-shadow-sm animate-walk-bob">
+          <img
+            src={character.image}
+            alt={character.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        {/* Shadow */}
+        <div
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full"
+          style={{ background: "radial-gradient(ellipse, rgba(0,0,0,0.5), transparent)" }}
+        />
+      </div>
       {mapping.map((h, idx) => {
         const Icon = Lucide[h.icon] || Lucide.MapPin;
         const isSolved = h.puzzleId && solvedIds.has(h.puzzleId);

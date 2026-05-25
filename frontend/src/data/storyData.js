@@ -8,7 +8,7 @@ export const CHARACTERS = [
     specialty: "Math & Logic",
     color: "#4ADE80",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=ChrisBoyStrayz&backgroundColor=4ADE80&radius=20",
+      "https://api.dicebear.com/7.x/lorelei/svg?seed=ChrisBoy10&backgroundColor=4ADE80&radius=20",
     bio: "The youngest Stray. A boy genius with numbers who never stops asking 'why?'",
     family: "kid",
   },
@@ -21,7 +21,7 @@ export const CHARACTERS = [
     specialty: "Music & Arts",
     color: "#FB923C",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=ArchieBoyStrayz&backgroundColor=FB923C&radius=20",
+      "https://api.dicebear.com/7.x/lorelei/svg?seed=ArchieTeenBoy16&backgroundColor=FB923C&radius=20",
     bio: "Teen lad with perfect pitch and an encyclopedic knowledge of music.",
     family: "teen",
   },
@@ -34,7 +34,7 @@ export const CHARACTERS = [
     specialty: "History & Geography",
     color: "#38BDF8",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=LynnGirlStrayz&backgroundColor=38BDF8&radius=20",
+      "https://api.dicebear.com/7.x/lorelei/svg?seed=LynnWomanExplorer&backgroundColor=38BDF8&radius=20",
     bio: "Young woman backpacker who has trekked every continent. Reads ancient maps like comics.",
     family: "young-adult",
   },
@@ -47,7 +47,7 @@ export const CHARACTERS = [
     specialty: "Science & Nature",
     color: "#A78BFA",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=DebGirlStrayz&backgroundColor=A78BFA&radius=20",
+      "https://api.dicebear.com/7.x/lorelei/svg?seed=DebWomanScientist&backgroundColor=A78BFA&radius=20",
     bio: "Eldest sibling. Lab whizz with a thermos of coffee and a microscope.",
     family: "young-adult",
   },
@@ -60,7 +60,7 @@ export const CHARACTERS = [
     specialty: "General Knowledge & Home",
     color: "#F472B6",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=DollyMomStrayz&backgroundColor=F472B6&radius=20",
+      "https://api.dicebear.com/7.x/lorelei/svg?seed=DollyMotherMum&backgroundColor=F472B6&radius=20",
     bio: "Mum of the crew. A walking trivia encyclopedia who runs the cosy family base camp.",
     family: "parent",
   },
@@ -73,20 +73,20 @@ export const CHARACTERS = [
     specialty: "Sports & Endurance",
     color: "#22D3EE",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=ArthurDadStrayz&backgroundColor=22D3EE&radius=20",
-    bio: "Dad of the crew. Ex-athlete and sports nerd who cheers louder than anyone — earns the team a bonus on every correct answer.",
+      "https://api.dicebear.com/7.x/lorelei/svg?seed=ArthurFatherCoach&backgroundColor=22D3EE&radius=20",
+    bio: "Dad of the crew. Ex-athlete and sports nerd who cheers louder than anyone — leads the Sports Arena and gives the team a flat bonus on every correct answer.",
     family: "parent",
   },
 ];
 
 // Each character's specialty maps to a level id (for bonus rewards).
-// Arthur has no level match — instead he gives a flat +5 bonus on every correct answer (see GamePlay).
 export const CHARACTER_SPECIALTY_LEVEL = {
   chris: 1, // Math & Logic -> Jungle Ruins
   archie: 2, // Music -> Musical Museum
   lynn: 3, // History & Geography -> Ancient Library
   deb: 4, // Science -> Science Lab
   dolly: 5, // General Knowledge -> Final Showdown (mixed)
+  arthur: 6, // Sports -> Sports Arena
 };
 
 // Flat per-correct bonus that applies regardless of level (Arthur's coach buff).
@@ -281,6 +281,7 @@ export const LEVEL_INTROS = {
   3: "Dust swirls in the Ancient Library. Scrolls float in mid-air, waiting for the right answer to settle.",
   4: "Beakers bubble in the abandoned Science Lab. A mysterious symbol glows on the wall — it's time for science!",
   5: "The mastermind's lair! Everything you have learned will be tested in this final showdown.",
+  6: "Floodlights blaze over the Sports Arena. A legendary trophy has been stolen — Coach Arthur is calling the plays!",
 };
 
 export const BACKGROUNDS = {
@@ -296,6 +297,8 @@ export const BACKGROUNDS = {
     "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/ce262c5d0850ca023fbce3be0b28c362dfc870f72bcbe51498f7cc87bb63bcd9.png",
   level_5:
     "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/784f9b8b6afee81a87a38bd90f44cf7fa406c73f48f8ca49e030c7ac67bb8038.png",
+  level_6:
+    "https://images.unsplash.com/photo-1471295253337-3ceaaedca402?w=1600&q=80",
   treasure:
     "https://images.unsplash.com/photo-1642211841112-2beeda7bfc07?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwzfHx0cmVhc3VyZSUyMGNoZXN0JTIwc2hpbnklMjBnb2xkJTIwY29pbnN8ZW58MHx8fHwxNzc5NzIwNzg0fDA&ixlib=rb-4.1.0&q=85",
 };

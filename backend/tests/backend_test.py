@@ -34,7 +34,7 @@ class TestRootAndLevels:
         data = r.json()
         assert "levels" in data
         levels = data["levels"]
-        assert len(levels) == 5
+        assert len(levels) == 6
         keys = {"id", "name", "subject", "color", "icon", "description", "background"}
         for lvl in levels:
             assert keys.issubset(lvl.keys()), f"Missing keys in {lvl}"
@@ -42,7 +42,7 @@ class TestRootAndLevels:
 
 # -------- Puzzles --------
 class TestPuzzles:
-    @pytest.mark.parametrize("level", [1, 2, 3, 4, 5])
+    @pytest.mark.parametrize("level", [1, 2, 3, 4, 5, 6])
     def test_puzzles_per_level(self, session, level):
         r = session.get(f"{API}/puzzles/{level}")
         assert r.status_code == 200

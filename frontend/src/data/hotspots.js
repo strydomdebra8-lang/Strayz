@@ -43,4 +43,12 @@ export const LEVEL_HOTSPOTS = {
     { id: "h5", x: 60, y: 80, label: "Greenhouse", icon: "Leaf" },
     { id: "h6", x: 80, y: 75, label: "Master Switches", icon: "Puzzle" },
   ],
+  6: [
+    { id: "h1", x: 25, y: 45, label: "World Cup Trophy", icon: "Trophy" },
+    { id: "h2", x: 50, y: 30, label: "Olympic Rings", icon: "CircleDot" },
+    { id: "h3", x: 75, y: 40, label: "Race Timer", icon: "Timer" },
+    { id: "h4", x: 22, y: 75, label: "Vintage Basketball", icon: "Circle" },
+    { id: "h5", x: 55, y: 78, label: "Stadium Clock", icon: "Clock" },
+    { id: "h6", x: 80, y: 72, label: "Tennis Court", icon: "Target" },
+  ],
 };
