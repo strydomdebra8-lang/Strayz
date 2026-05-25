@@ -45,6 +45,116 @@ export const CHARACTERS = [
   },
 ];
 
+// Each character's specialty maps to a level id (for bonus rewards)
+export const CHARACTER_SPECIALTY_LEVEL = {
+  chris: 1, // Math & Logic -> Jungle Ruins
+  archie: 2, // Music -> Musical Museum
+  lynn: 3, // History & Geography -> Ancient Library
+  deb: 4, // Science -> Science Lab
+};
+
+// Character-specific dialogue lines (chosen at random)
+export const CHARACTER_DIALOGUES = {
+  chris: {
+    onCorrect: [
+      "YES! That's the magic of math!",
+      "Boom! Numbers don't lie.",
+      "Easy peasy — let's keep stacking wins!",
+    ],
+    onWrong: [
+      "Hmm, let's check our working again.",
+      "Even Einstein got things wrong sometimes!",
+      "Don't worry — every wrong answer is a lesson.",
+    ],
+    onIdle: [
+      "Did you know zero was invented in India around the 5th century?",
+      "Patterns are everywhere — even in pineapples!",
+      "If you double a penny every day, you'd be a millionaire in a month.",
+    ],
+    onLevelStart: [
+      "Let's crunch some numbers!",
+      "Logic is my superpower.",
+      "Bring on the puzzles!",
+    ],
+  },
+  archie: {
+    onCorrect: [
+      "That hit the right note!",
+      "Sweet harmony — well played!",
+      "Encore, encore!",
+    ],
+    onWrong: [
+      "A wrong note happens to the best of us.",
+      "Re-tune and try again!",
+      "Even Mozart wrote a sour line now and then.",
+    ],
+    onIdle: [
+      "Did you know the longest song officially recorded is over 13 hours?",
+      "Music makes your brain release dopamine — fun fact!",
+      "There are exactly 12 notes in a chromatic scale.",
+    ],
+    onLevelStart: [
+      "Let the rhythm guide you!",
+      "I hear a tune of victory coming.",
+      "Drop the beat, we've got this.",
+    ],
+  },
+  lynn: {
+    onCorrect: [
+      "Cracked it like an ancient code!",
+      "Bookmarked! That's another fact in the books.",
+      "Pure brilliance — keep exploring!",
+    ],
+    onWrong: [
+      "History repeats — we'll get it next round.",
+      "Even great explorers misread maps.",
+      "Pull up the atlas, let's reconsider.",
+    ],
+    onIdle: [
+      "The Library of Alexandria once held over 400,000 scrolls.",
+      "There are 195 countries today — quite the to-do list!",
+      "Cleopatra lived closer to the Moon landing than the pyramids' construction.",
+    ],
+    onLevelStart: [
+      "Time to dust off the maps!",
+      "Every story has a secret — let's find it.",
+      "Adventure awaits — boots on!",
+    ],
+  },
+  deb: {
+    onCorrect: [
+      "Empirically excellent!",
+      "Hypothesis confirmed — high five!",
+      "That's the scientific method in action!",
+    ],
+    onWrong: [
+      "Re-run the experiment, scientist.",
+      "Failure is just data we haven't analysed yet.",
+      "Adjust the variables and try again.",
+    ],
+    onIdle: [
+      "Octopuses have three hearts — wild, right?",
+      "There are more stars in the universe than grains of sand on Earth.",
+      "Bananas are slightly radioactive — don't panic, only slightly!",
+    ],
+    onLevelStart: [
+      "Lab goggles on. Let's investigate!",
+      "Every great discovery starts with curiosity.",
+      "Hypothesis: we're about to crush this.",
+    ],
+  },
+};
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+export function getCharacterLine(characterId, mood) {
+  const lines = CHARACTER_DIALOGUES[characterId]?.[mood];
+  if (!lines || lines.length === 0) return "";
+  return pickRandom(lines);
+}
+
 export const STORY_INTRO = [
   {
     speaker: "Narrator",

@@ -6,8 +6,15 @@ import GameNav from "@/components/GameNav";
 import ShopDrawer from "@/components/ShopDrawer";
 import TactileButton from "@/components/TactileButton";
 import TriviaPuzzle from "@/components/TriviaPuzzle";
+import CharacterCompanion from "@/components/CharacterCompanion";
+import { getCharacterLine } from "@/data/storyData";
 import { generateAiRiddle, submitAnswer, getPlayer, updateProgress } from "@/lib/api";
-import { getPlayerId, getDifficulty } from "@/lib/gameStore";
+import {
+  getPlayerId,
+  getDifficulty,
+  getCharacter,
+  setCharacter as saveCharacter,
+} from "@/lib/gameStore";
 import { useEffect } from "react";
 
 const CATEGORIES = [
@@ -28,6 +35,9 @@ export default function EndlessMode() {
   const [loading, setLoading] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [player, setPlayer] = useState(null);
+  const [characterId, setCharacterId] = useState(getCharacter());
+  const [companionMood, setCompanionMood] = useState("idle");
+  const [companionSpeech, setCompanionSpeech] = useState("");
   const difficulty = getDifficulty();
 
   useEffect(() => {
@@ -61,6 +71,8 @@ export default function EndlessMode() {
       setFeedback(r);
       if (r.correct) {
         setStreak((s) => s + 1);
+        setCompanionMood("happy");
+        setCompanionSpeech(getCharacterLine(characterId, "onCorrect"));
         toast.success(`Correct! +${r.coins_earned} coins`);
         const upd = await updateProgress({
           player_id: getPlayerId(),
@@ -70,6 +82,8 @@ export default function EndlessMode() {
         setPlayer(upd);
       } else {
         setStreak(0);
+        setCompanionMood("sad");
+        setCompanionSpeech(getCharacterLine(characterId, "onWrong"));
         toast.error("Wrong answer", { description: `Answer: ${r.correct_answer}` });
       }
     } catch {
@@ -234,6 +248,20 @@ export default function EndlessMode() {
         open={shopOpen}
         onOpenChange={setShopOpen}
         onPlayerUpdate={setPlayer}
+      />
+
+      <CharacterCompanion
+        characterId={characterId}
+        mood={companionMood}
+        speech={companionSpeech}
+        levelId={0}
+        onSwitch={(id) => {
+          setCharacterId(id);
+          saveCharacter(id);
+          setCompanionMood("idle");
+          setCompanionSpeech(getCharacterLine(id, "onLevelStart"));
+          toast(`Switched to ${id.charAt(0).toUpperCase() + id.slice(1)}!`);
+        }}
       />
     </div>
   );

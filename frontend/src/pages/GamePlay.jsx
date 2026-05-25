@@ -15,7 +15,13 @@ import ShopDrawer from "@/components/ShopDrawer";
 import TactileButton from "@/components/TactileButton";
 import TriviaPuzzle from "@/components/TriviaPuzzle";
 import PatternPuzzle from "@/components/PatternPuzzle";
-import { BACKGROUNDS, LEVEL_INTROS } from "@/data/storyData";
+import CharacterCompanion from "@/components/CharacterCompanion";
+import {
+  BACKGROUNDS,
+  LEVEL_INTROS,
+  CHARACTER_SPECIALTY_LEVEL,
+  getCharacterLine,
+} from "@/data/storyData";
 import {
   getPuzzles,
   getLevels,
@@ -24,7 +30,12 @@ import {
   getPlayer,
   updateProgress,
 } from "@/lib/api";
-import { getPlayerId, getDifficulty } from "@/lib/gameStore";
+import {
+  getPlayerId,
+  getDifficulty,
+  getCharacter,
+  setCharacter as saveCharacter,
+} from "@/lib/gameStore";
 
 export default function GamePlay() {
   const { levelId } = useParams();
@@ -41,7 +52,14 @@ export default function GamePlay() {
   const [shopOpen, setShopOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [introOpen, setIntroOpen] = useState(true);
+  const [characterId, setCharacterId] = useState(getCharacter());
+  const [companionMood, setCompanionMood] = useState("idle");
+  const [companionSpeech, setCompanionSpeech] = useState("");
+  const [freeHintAvailable, setFreeHintAvailable] = useState(false);
+  const [specialtyBonusGranted, setSpecialtyBonusGranted] = useState(false);
   const difficulty = getDifficulty();
+
+  const isSpecialty = CHARACTER_SPECIALTY_LEVEL[characterId] === levelNum;
 
   const level = useMemo(
     () => levels.find((l) => l.id === levelNum),
@@ -70,11 +88,33 @@ export default function GamePlay() {
         selected: selectedValue,
         difficulty,
       });
-      setFeedback(result);
+
+      // Apply specialty bonus (once per level)
+      let bonusCoins = 0;
+      if (result.correct && isSpecialty && !specialtyBonusGranted) {
+        bonusCoins = 10;
+        setSpecialtyBonusGranted(true);
+      }
+      const totalAwarded = result.coins_earned + bonusCoins;
+      const enriched = { ...result, coins_earned: totalAwarded };
+
+      setFeedback(enriched);
       if (result.correct) {
         setScore((s) => s + 1);
-        toast.success(`Correct! +${result.coins_earned} coins`);
+        setCompanionMood("happy");
+        setCompanionSpeech(getCharacterLine(characterId, "onCorrect"));
+        if (bonusCoins > 0) {
+          toast.success(`Correct! +${result.coins_earned} coins`, {
+            description: `+${bonusCoins} specialty bonus from ${
+              characterId.charAt(0).toUpperCase() + characterId.slice(1)
+            }!`,
+          });
+        } else {
+          toast.success(`Correct! +${result.coins_earned} coins`);
+        }
       } else {
+        setCompanionMood("sad");
+        setCompanionSpeech(getCharacterLine(characterId, "onWrong"));
         toast.error("Not quite!", { description: `Answer: ${result.correct_answer}` });
       }
     } catch {
@@ -84,6 +124,20 @@ export default function GamePlay() {
 
   const handleHint = async () => {
     if (!current) return;
+    // Free hint via specialty bonus
+    if (freeHintAvailable) {
+      try {
+        const h = await getHint(current.id);
+        setHintShown(h.hint);
+        setFreeHintAvailable(false);
+        toast(`${characterId.charAt(0).toUpperCase() + characterId.slice(1)} gave you a free hint!`);
+        setCompanionMood("thinking");
+        return;
+      } catch {
+        toast.error("Could not fetch hint.");
+        return;
+      }
+    }
     if ((player?.coins ?? 0) < 15) {
       toast.error("Not enough coins for a hint", {
         description: "Visit the shop to top up!",
@@ -93,7 +147,6 @@ export default function GamePlay() {
     try {
       const h = await getHint(current.id);
       setHintShown(h.hint);
-      // Deduct 15 coins locally and on server
       const newCoins = (player.coins || 0) - 15;
       const updated = { ...player, coins: newCoins };
       setPlayer(updated);
@@ -103,6 +156,7 @@ export default function GamePlay() {
         coins: -15,
       });
       toast("Hint unlocked", { description: "-15 coins" });
+      setCompanionMood("thinking");
     } catch {
       toast.error("Could not fetch hint.");
     }
@@ -112,6 +166,24 @@ export default function GamePlay() {
     setFeedback(null);
     setHintShown(null);
     setIdx((i) => i + 1);
+    setCompanionMood("idle");
+    setCompanionSpeech("");
+  };
+
+  const handleSwitchCharacter = (newId) => {
+    setCharacterId(newId);
+    saveCharacter(newId);
+    setCompanionMood("idle");
+    setCompanionSpeech(getCharacterLine(newId, "onLevelStart"));
+    const nowSpecialty = CHARACTER_SPECIALTY_LEVEL[newId] === levelNum;
+    if (nowSpecialty && !freeHintAvailable) {
+      setFreeHintAvailable(true);
+    }
+    toast(
+      `Switched to ${newId.charAt(0).toUpperCase() + newId.slice(1)}!${
+        nowSpecialty ? " Specialty bonus active." : ""
+      }`
+    );
   };
 
   const finishLevel = async () => {
@@ -168,6 +240,18 @@ export default function GamePlay() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedAll, loading]);
+
+  // When level loads, prep specialty bonuses and greet the player
+  useEffect(() => {
+    if (!loading && isSpecialty) {
+      setFreeHintAvailable(true);
+    }
+    if (!loading) {
+      setCompanionSpeech(getCharacterLine(characterId, "onLevelStart"));
+      setCompanionMood("idle");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, levelNum, characterId]);
 
   const bg = BACKGROUNDS[level?.background] || BACKGROUNDS.level_1;
 
@@ -229,6 +313,16 @@ export default function GamePlay() {
             <p className="text-slate-800 font-semibold leading-relaxed">
               {LEVEL_INTROS[levelNum]}
             </p>
+            {isSpecialty && (
+              <div
+                className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-100 border-2 border-slate-800 text-sm font-bold text-amber-800"
+                data-testid="specialty-banner"
+              >
+                <Star className="w-4 h-4" strokeWidth={3} fill="#FBBF24" />
+                {characterId.charAt(0).toUpperCase() + characterId.slice(1)}'s
+                specialty level — +10 coin bonus &amp; 1 free hint!
+              </div>
+            )}
             <div className="mt-4 text-right">
               <TactileButton
                 color="#38BDF8"
@@ -321,7 +415,7 @@ export default function GamePlay() {
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <TactileButton
-                color="#FBBF24"
+                color={freeHintAvailable ? "#4ADE80" : "#FBBF24"}
                 textColor="#1E293B"
                 size="sm"
                 icon={Lightbulb}
@@ -329,7 +423,7 @@ export default function GamePlay() {
                 disabled={!!hintShown || !!feedback}
                 data-testid="hint-button"
               >
-                Hint (15 coins)
+                {freeHintAvailable ? "Free Hint!" : "Hint (15 coins)"}
               </TactileButton>
 
               {feedback && (
@@ -420,6 +514,14 @@ export default function GamePlay() {
         open={shopOpen}
         onOpenChange={setShopOpen}
         onPlayerUpdate={setPlayer}
+      />
+
+      <CharacterCompanion
+        characterId={characterId}
+        mood={companionMood}
+        speech={companionSpeech}
+        levelId={levelNum}
+        onSwitch={handleSwitchCharacter}
       />
     </div>
   );
