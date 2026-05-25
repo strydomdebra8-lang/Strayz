@@ -1,0 +1,426 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  Lightbulb,
+  ArrowRight,
+  Trophy,
+  Check,
+  X,
+  Star,
+  Map as MapIcon,
+} from "lucide-react";
+import GameNav from "@/components/GameNav";
+import ShopDrawer from "@/components/ShopDrawer";
+import TactileButton from "@/components/TactileButton";
+import TriviaPuzzle from "@/components/TriviaPuzzle";
+import PatternPuzzle from "@/components/PatternPuzzle";
+import { BACKGROUNDS, LEVEL_INTROS } from "@/data/storyData";
+import {
+  getPuzzles,
+  getLevels,
+  submitAnswer,
+  getHint,
+  getPlayer,
+  updateProgress,
+} from "@/lib/api";
+import { getPlayerId, getDifficulty } from "@/lib/gameStore";
+
+export default function GamePlay() {
+  const { levelId } = useParams();
+  const levelNum = parseInt(levelId, 10);
+  const navigate = useNavigate();
+
+  const [levels, setLevels] = useState([]);
+  const [player, setPlayer] = useState(null);
+  const [puzzles, setPuzzles] = useState([]);
+  const [idx, setIdx] = useState(0);
+  const [feedback, setFeedback] = useState(null);
+  const [hintShown, setHintShown] = useState(null);
+  const [score, setScore] = useState(0);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [introOpen, setIntroOpen] = useState(true);
+  const difficulty = getDifficulty();
+
+  const level = useMemo(
+    () => levels.find((l) => l.id === levelNum),
+    [levels, levelNum]
+  );
+
+  useEffect(() => {
+    Promise.all([
+      getLevels().then((d) => setLevels(d.levels)),
+      getPuzzles(levelNum, difficulty).then((d) => setPuzzles(d.puzzles)),
+      getPlayer(getPlayerId()).then(setPlayer),
+    ])
+      .catch(() => toast.error("Failed to load level."))
+      .finally(() => setLoading(false));
+  }, [levelNum, difficulty]);
+
+  const current = puzzles[idx];
+  const totalPuzzles = puzzles.length;
+  const completedAll = idx >= totalPuzzles && totalPuzzles > 0;
+
+  const handleSubmit = async (selectedValue) => {
+    if (!current || feedback) return;
+    try {
+      const result = await submitAnswer({
+        puzzle_id: current.id,
+        selected: selectedValue,
+        difficulty,
+      });
+      setFeedback(result);
+      if (result.correct) {
+        setScore((s) => s + 1);
+        toast.success(`Correct! +${result.coins_earned} coins`);
+      } else {
+        toast.error("Not quite!", { description: `Answer: ${result.correct_answer}` });
+      }
+    } catch {
+      toast.error("Could not submit answer.");
+    }
+  };
+
+  const handleHint = async () => {
+    if (!current) return;
+    if ((player?.coins ?? 0) < 15) {
+      toast.error("Not enough coins for a hint", {
+        description: "Visit the shop to top up!",
+      });
+      return;
+    }
+    try {
+      const h = await getHint(current.id);
+      setHintShown(h.hint);
+      // Deduct 15 coins locally and on server
+      const newCoins = (player.coins || 0) - 15;
+      const updated = { ...player, coins: newCoins };
+      setPlayer(updated);
+      await updateProgress({
+        player_id: getPlayerId(),
+        level: levelNum,
+        coins: -15,
+      });
+      toast("Hint unlocked", { description: "-15 coins" });
+    } catch {
+      toast.error("Could not fetch hint.");
+    }
+  };
+
+  const next = () => {
+    setFeedback(null);
+    setHintShown(null);
+    setIdx((i) => i + 1);
+  };
+
+  const finishLevel = async () => {
+    const stars = totalPuzzles
+      ? score >= totalPuzzles
+        ? 3
+        : score >= Math.ceil(totalPuzzles * 0.7)
+        ? 2
+        : score >= Math.ceil(totalPuzzles * 0.4)
+        ? 1
+        : 0
+      : 0;
+    const baseCoinsPerCorrect = { easy: 10, medium: 20, hard: 35 }[difficulty] || 20;
+    const earned = score * baseCoinsPerCorrect;
+    try {
+      const updated = await updateProgress({
+        player_id: getPlayerId(),
+        level: levelNum,
+        completed: true,
+        coins: 0, // coins already credited per answer? — backend not auto-crediting; we explicitly grant once
+        stars,
+      });
+      // Grant bonus coins for finishing
+      const final = await updateProgress({
+        player_id: getPlayerId(),
+        level: levelNum,
+        coins: earned,
+      });
+      setPlayer(final);
+    } catch {
+      // ignore
+    }
+    toast.success(`Level ${levelNum} complete! ${"⭐".repeat(stars)}`);
+  };
+
+  // Save coins per correct answer to backend
+  useEffect(() => {
+    if (feedback?.correct) {
+      updateProgress({
+        player_id: getPlayerId(),
+        level: levelNum,
+        coins: feedback.coins_earned,
+      })
+        .then(setPlayer)
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedback]);
+
+  // When level finishes, persist completion once
+  useEffect(() => {
+    if (completedAll && !loading) {
+      finishLevel();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedAll, loading]);
+
+  const bg = BACKGROUNDS[level?.background] || BACKGROUNDS.level_1;
+
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center bg-amber-100"
+        data-testid="gameplay-loading"
+      >
+        <div className="font-display text-3xl text-slate-700 animate-pulse">
+          Loading quest…
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen bg-amber-100"
+      style={{
+        backgroundImage: `linear-gradient(rgba(15,23,42,0.55), rgba(15,23,42,0.75)), url(${bg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+      data-testid="gameplay-page"
+    >
+      <GameNav player={player} onOpenShop={() => setShopOpen(true)} />
+
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        {/* Level header */}
+        <div className="tactile-card bg-white p-4 sm:p-5 mb-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span className="font-accent text-sky-700 text-sm">
+                LEVEL {levelNum} • {difficulty.toUpperCase()}
+              </span>
+              <h1 className="font-display font-bold text-2xl sm:text-3xl text-slate-900">
+                {level?.name || "Quest"}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="tactile-chip text-emerald-700">
+                <Check className="w-4 h-4" strokeWidth={3} /> {score}
+              </span>
+              <span className="tactile-chip text-slate-700">
+                {Math.min(idx + 1, totalPuzzles)} / {totalPuzzles}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Intro panel */}
+        {introOpen && !completedAll && (
+          <div
+            className="tactile-card bg-amber-50 p-5 mb-5 animate-pop-in"
+            data-testid="level-intro"
+          >
+            <p className="text-slate-800 font-semibold leading-relaxed">
+              {LEVEL_INTROS[levelNum]}
+            </p>
+            <div className="mt-4 text-right">
+              <TactileButton
+                color="#38BDF8"
+                size="sm"
+                icon={ArrowRight}
+                onClick={() => setIntroOpen(false)}
+                data-testid="dismiss-intro-button"
+              >
+                Begin Puzzles
+              </TactileButton>
+            </div>
+          </div>
+        )}
+
+        {/* Puzzle */}
+        {!completedAll && !introOpen && current && (
+          <div
+            className="tactile-card bg-white p-6 sm:p-7 space-y-5 animate-pop-in"
+            data-testid="puzzle-card"
+          >
+            <div>
+              <span className="font-accent text-sm text-slate-500 uppercase">
+                {current.type} • {current.category}
+              </span>
+              <h2
+                className="font-display font-bold text-xl sm:text-2xl text-slate-900 mt-1"
+                data-testid="puzzle-question"
+              >
+                {current.question}
+              </h2>
+            </div>
+
+            {hintShown && (
+              <div
+                className="rounded-2xl border-2 border-slate-800 bg-amber-100 p-3 text-sm font-semibold text-slate-800 flex gap-2 items-start"
+                data-testid="hint-shown"
+              >
+                <Lightbulb
+                  className="w-5 h-5 text-amber-600 mt-0.5"
+                  strokeWidth={3}
+                />
+                <span>{hintShown}</span>
+              </div>
+            )}
+
+            {current.type === "pattern" ? (
+              <PatternPuzzle
+                puzzle={current}
+                onSubmit={handleSubmit}
+                disabled={!!feedback}
+              />
+            ) : (
+              <TriviaPuzzle
+                puzzle={current}
+                onSubmit={handleSubmit}
+                locked={!!feedback}
+              />
+            )}
+
+            {/* Feedback */}
+            {feedback && (
+              <div
+                className={`rounded-2xl border-4 p-4 ${
+                  feedback.correct
+                    ? "bg-emerald-100 border-emerald-700"
+                    : "bg-rose-100 border-rose-700"
+                }`}
+                data-testid={feedback.correct ? "feedback-correct" : "feedback-wrong"}
+              >
+                <div className="flex items-center gap-2 font-display font-bold text-lg">
+                  {feedback.correct ? (
+                    <>
+                      <Check className="w-5 h-5 text-emerald-700" strokeWidth={3} />
+                      <span className="text-emerald-900">Brilliant!</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-5 h-5 text-rose-700" strokeWidth={3} />
+                      <span className="text-rose-900">
+                        Answer: {feedback.correct_answer}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-slate-800">
+                  {feedback.explanation}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <TactileButton
+                color="#FBBF24"
+                textColor="#1E293B"
+                size="sm"
+                icon={Lightbulb}
+                onClick={handleHint}
+                disabled={!!hintShown || !!feedback}
+                data-testid="hint-button"
+              >
+                Hint (15 coins)
+              </TactileButton>
+
+              {feedback && (
+                <TactileButton
+                  color="#38BDF8"
+                  size="md"
+                  icon={ArrowRight}
+                  onClick={next}
+                  data-testid="next-puzzle-button"
+                >
+                  {idx + 1 < totalPuzzles ? "Next" : "Finish Level"}
+                </TactileButton>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Level complete */}
+        {completedAll && (
+          <div
+            className="tactile-card bg-white p-6 sm:p-8 text-center animate-celebrate"
+            data-testid="level-complete"
+          >
+            <Trophy className="w-16 h-16 mx-auto text-amber-500" strokeWidth={3} />
+            <h2 className="font-display font-bold text-3xl text-slate-900 mt-2">
+              Level Complete!
+            </h2>
+            <p className="text-slate-700 font-semibold">
+              You answered {score} of {totalPuzzles} correctly.
+            </p>
+
+            <div className="my-5 flex justify-center gap-2">
+              {[1, 2, 3].map((s) => {
+                const earned =
+                  score >= totalPuzzles
+                    ? 3
+                    : score >= Math.ceil(totalPuzzles * 0.7)
+                    ? 2
+                    : score >= Math.ceil(totalPuzzles * 0.4)
+                    ? 1
+                    : 0;
+                return (
+                  <Star
+                    key={s}
+                    className="w-12 h-12"
+                    strokeWidth={3}
+                    fill={s <= earned ? "#FBBF24" : "transparent"}
+                    color={s <= earned ? "#FBBF24" : "#94A3B8"}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-3">
+              <TactileButton
+                color="#38BDF8"
+                icon={MapIcon}
+                onClick={() => navigate("/map")}
+                data-testid="back-to-map-button"
+              >
+                Back to Map
+              </TactileButton>
+              {levelNum < 5 ? (
+                <TactileButton
+                  color="#4ADE80"
+                  icon={ArrowRight}
+                  onClick={() => navigate(`/play/${levelNum + 1}`)}
+                  data-testid="next-level-button"
+                >
+                  Next Level
+                </TactileButton>
+              ) : (
+                <TactileButton
+                  color="#F472B6"
+                  icon={Trophy}
+                  onClick={() => navigate("/")}
+                  data-testid="game-end-button"
+                >
+                  Hall of Fame
+                </TactileButton>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      <ShopDrawer
+        open={shopOpen}
+        onOpenChange={setShopOpen}
+        onPlayerUpdate={setPlayer}
+      />
+    </div>
+  );
+}
