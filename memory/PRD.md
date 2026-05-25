@@ -75,3 +75,26 @@ A point and click game that includes brain teasers, puzzles and riddles as well 
 - Boss-level cutscene animations
 - More AI puzzle categories (logic chains, word ladders)
 
+
+## Iteration 3 Update (2026-02-25) — "Best Game Ever" Push
+- ✅ Added 4 distinct DiceBear character portraits (chris/archie/lynn/deb)
+- ✅ Sound system: Web Audio API SFX (correct/wrong/coin/hint/click/levelUp/pop/drop/rotate/lineClear) + Howler background music with graceful fallback
+- ✅ Sound toggle in nav (persists to localStorage)
+- ✅ Clickable hotspots overlay on level backgrounds — TRUE point-and-click feel; 6 hotspots per level
+- ✅ Tetris Mini block-stacking game on /tetris route with full controls (kbd + buttons)
+- ✅ CSS-3D treasure chest hero scene on main menu (replaced R3F due to React 19 incompat)
+- ✅ "Quick Block Break" interlude button on level complete card
+- ✅ Character interactivity polished: SFX-synced moods/speech, music per page (menu/level/endless)
+
+## Known Limitations
+- Background music URLs (Mixkit) return 403 — feature degrades gracefully (SFX still works). User can replace with own tracks in `/app/frontend/src/lib/sound.js` BG_TRACKS.
+- Hero3D is CSS-based, not WebGL. True 3D requires R3F v9 + Node 22 (current env is Node 20).
+
+## Remaining Backlog
+- P1: Real audio assets (music + voice clips)
+- P1: Animated character walk-cycles on hotspot scenes
+- P1: Inventory of recovered artifacts
+- P2: Convert one level to real WebGL 3D scene (after Node 22 env upgrade)
+- P2: Daily challenge + leaderboard
+- P2: Real Stripe IAP integration
+
