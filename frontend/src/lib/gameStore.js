@@ -22,7 +22,7 @@ export function setPlayerName(name) {
 }
 
 export function getCharacter() {
-  return localStorage.getItem(CHAR_KEY) || "max";
+  return localStorage.getItem(CHAR_KEY) || "chris";
 }
 export function setCharacter(c) {
   localStorage.setItem(CHAR_KEY, c);

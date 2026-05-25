@@ -62,7 +62,7 @@ class PlayerProgress(BaseModel):
     gems: int = 5
     levels_completed: List[int] = Field(default_factory=list)
     level_stars: dict = Field(default_factory=dict)
-    selected_character: str = "max"
+    selected_character: str = "chris"
     created_at: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )

@@ -1,7 +1,7 @@
 export const CHARACTERS = [
   {
-    id: "max",
-    name: "Max",
+    id: "chris",
+    name: "Chris",
     age: 10,
     role: "The Curious Whiz",
     specialty: "Math & Logic",
@@ -11,8 +11,8 @@ export const CHARACTERS = [
     bio: "The youngest Stray. Genius with numbers and never afraid to ask 'why?'",
   },
   {
-    id: "zoe",
-    name: "Zoe",
+    id: "archie",
+    name: "Archie",
     age: 16,
     role: "The Music Maven",
     specialty: "Music & Arts",
@@ -22,8 +22,8 @@ export const CHARACTERS = [
     bio: "Teen prodigy with perfect pitch and an encyclopedic knowledge of music.",
   },
   {
-    id: "leo",
-    name: "Leo",
+    id: "lynn",
+    name: "Lynn",
     age: 22,
     role: "The Explorer",
     specialty: "History & Geography",
@@ -33,8 +33,8 @@ export const CHARACTERS = [
     bio: "Backpacker who has trekked every continent. Reads ancient maps like comics.",
   },
   {
-    id: "maya",
-    name: "Maya",
+    id: "deb",
+    name: "Deb",
     age: 28,
     role: "The Scientist",
     specialty: "Science & Nature",
@@ -51,19 +51,19 @@ export const STORY_INTRO = [
     text: "Welcome to STRAYZ — the chronicles of the Stray family, a quartet of youthful adventurers.",
   },
   {
-    speaker: "Maya",
+    speaker: "Deb",
     text: "Five priceless artifacts have been stolen from museums around the world. The trail is fresh!",
   },
   {
-    speaker: "Leo",
+    speaker: "Lynn",
     text: "We have ancient maps, cryptic clues, and our wits. Each location guards its secrets.",
   },
   {
-    speaker: "Zoe",
+    speaker: "Archie",
     text: "And don't forget the music codes! Some of these clues are hidden in melodies.",
   },
   {
-    speaker: "Max",
+    speaker: "Chris",
     text: "And the math puzzles! I've been practicing — let's GO!",
   },
   {
