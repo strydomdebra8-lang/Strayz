@@ -16,6 +16,7 @@ import TactileButton from "@/components/TactileButton";
 import { BACKGROUNDS } from "@/data/storyData";
 import { getLevels, getPlayer } from "@/lib/api";
 import { getPlayerId } from "@/lib/gameStore";
+import { playMusic } from "@/lib/sound";
 
 const ICON_MAP = { TreePine, Music, BookOpen, FlaskConical, Crown };
 
@@ -28,6 +29,7 @@ export default function LevelMap() {
   useEffect(() => {
     getLevels().then((d) => setLevels(d.levels)).catch(() => {});
     getPlayer(getPlayerId()).then(setPlayer).catch(() => {});
+    playMusic("menu");
   }, []);
 
   const completed = new Set(player?.levels_completed || []);

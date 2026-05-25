@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, BookOpenText, Sparkles, Map, Settings, Brain } from "lucide-react";
+import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks } from "lucide-react";
 import TactileButton from "@/components/TactileButton";
 import ShopDrawer from "@/components/ShopDrawer";
 import GameNav from "@/components/GameNav";
+import Hero3D from "@/components/Hero3D";
 import { BACKGROUNDS, CHARACTERS } from "@/data/storyData";
 import {
   getPlayerId,
@@ -15,6 +16,7 @@ import {
   setPlayerName as savePlayerName,
 } from "@/lib/gameStore";
 import { getPlayer, savePlayer } from "@/lib/api";
+import { playMusic } from "@/lib/sound";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,7 @@ export default function MainMenu() {
   useEffect(() => {
     const pid = getPlayerId();
     getPlayer(pid).then(setPlayer).catch(() => {});
+    playMusic("menu");
   }, []);
 
   const pickCharacter = (id) => {
@@ -122,6 +125,20 @@ export default function MainMenu() {
             >
               Endless AI
             </TactileButton>
+            <TactileButton
+              color="#F472B6"
+              size="xl"
+              icon={Blocks}
+              onClick={() => navigate("/tetris")}
+              data-testid="open-tetris-button"
+            >
+              Block Break
+            </TactileButton>
+          </div>
+
+          {/* 3D Hero teaser */}
+          <div className="mt-10 max-w-2xl mx-auto">
+            <Hero3D />
           </div>
         </section>
 

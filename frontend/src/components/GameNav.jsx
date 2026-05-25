@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { Coins, Gem, Home, Store, Sparkles } from "lucide-react";
+import SoundToggle from "@/components/SoundToggle";
 
-export default function GameNav({ player, onOpenShop, hideHome = false }) {
+export default function GameNav({ player, onOpenShop, hideHome = false, trackKey = "menu" }) {
   const navigate = useNavigate();
   const coins = player?.coins ?? 0;
   const gems = player?.gems ?? 0;
@@ -38,6 +39,7 @@ export default function GameNav({ player, onOpenShop, hideHome = false }) {
             <Gem className="w-4 h-4" strokeWidth={3} />
             <span>{gems}</span>
           </span>
+          <SoundToggle trackKey={trackKey} />
           <button
             onClick={onOpenShop}
             className="tactile-btn bg-pink-400 text-white px-3 py-2 text-sm"

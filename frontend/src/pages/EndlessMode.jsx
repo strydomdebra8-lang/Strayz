@@ -8,6 +8,7 @@ import TactileButton from "@/components/TactileButton";
 import TriviaPuzzle from "@/components/TriviaPuzzle";
 import CharacterCompanion from "@/components/CharacterCompanion";
 import { getCharacterLine } from "@/data/storyData";
+import { sfx, playMusic } from "@/lib/sound";
 import { generateAiRiddle, submitAnswer, getPlayer, updateProgress } from "@/lib/api";
 import {
   getPlayerId,
@@ -42,6 +43,7 @@ export default function EndlessMode() {
 
   useEffect(() => {
     getPlayer(getPlayerId()).then(setPlayer).catch(() => {});
+    playMusic("endless");
   }, []);
 
   const newRiddle = async () => {
@@ -70,6 +72,8 @@ export default function EndlessMode() {
       });
       setFeedback(r);
       if (r.correct) {
+        sfx.correct();
+        sfx.coin();
         setStreak((s) => s + 1);
         setCompanionMood("happy");
         setCompanionSpeech(getCharacterLine(characterId, "onCorrect"));
@@ -81,6 +85,7 @@ export default function EndlessMode() {
         });
         setPlayer(upd);
       } else {
+        sfx.wrong();
         setStreak(0);
         setCompanionMood("sad");
         setCompanionSpeech(getCharacterLine(characterId, "onWrong"));

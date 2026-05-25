@@ -16,6 +16,8 @@ import TactileButton from "@/components/TactileButton";
 import TriviaPuzzle from "@/components/TriviaPuzzle";
 import PatternPuzzle from "@/components/PatternPuzzle";
 import CharacterCompanion from "@/components/CharacterCompanion";
+import HotspotScene from "@/components/HotspotScene";
+import { sfx, playMusic } from "@/lib/sound";
 import {
   BACKGROUNDS,
   LEVEL_INTROS,
@@ -57,6 +59,8 @@ export default function GamePlay() {
   const [companionSpeech, setCompanionSpeech] = useState("");
   const [freeHintAvailable, setFreeHintAvailable] = useState(false);
   const [specialtyBonusGranted, setSpecialtyBonusGranted] = useState(false);
+  const [showScene, setShowScene] = useState(true);
+  const [solvedIds, setSolvedIds] = useState(new Set());
   const difficulty = getDifficulty();
 
   const isSpecialty = CHARACTER_SPECIALTY_LEVEL[characterId] === levelNum;
@@ -100,6 +104,9 @@ export default function GamePlay() {
 
       setFeedback(enriched);
       if (result.correct) {
+        sfx.correct();
+        sfx.coin();
+        setSolvedIds((prev) => new Set(prev).add(current.id));
         setScore((s) => s + 1);
         setCompanionMood("happy");
         setCompanionSpeech(getCharacterLine(characterId, "onCorrect"));
@@ -113,6 +120,7 @@ export default function GamePlay() {
           toast.success(`Correct! +${result.coins_earned} coins`);
         }
       } else {
+        sfx.wrong();
         setCompanionMood("sad");
         setCompanionSpeech(getCharacterLine(characterId, "onWrong"));
         toast.error("Not quite!", { description: `Answer: ${result.correct_answer}` });
@@ -130,6 +138,7 @@ export default function GamePlay() {
         const h = await getHint(current.id);
         setHintShown(h.hint);
         setFreeHintAvailable(false);
+        sfx.hint();
         toast(`${characterId.charAt(0).toUpperCase() + characterId.slice(1)} gave you a free hint!`);
         setCompanionMood("thinking");
         return;
@@ -155,6 +164,7 @@ export default function GamePlay() {
         level: levelNum,
         coins: -15,
       });
+      sfx.hint();
       toast("Hint unlocked", { description: "-15 coins" });
       setCompanionMood("thinking");
     } catch {
@@ -168,6 +178,8 @@ export default function GamePlay() {
     setIdx((i) => i + 1);
     setCompanionMood("idle");
     setCompanionSpeech("");
+    setShowScene(true);
+    sfx.click();
   };
 
   const handleSwitchCharacter = (newId) => {
@@ -217,6 +229,7 @@ export default function GamePlay() {
       // ignore
     }
     toast.success(`Level ${levelNum} complete! ${"⭐".repeat(stars)}`);
+    sfx.levelUp();
   };
 
   // Save coins per correct answer to backend
@@ -241,8 +254,11 @@ export default function GamePlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedAll, loading]);
 
-  // When level loads, prep specialty bonuses and greet the player
+  // Play level music + greet on level load
   useEffect(() => {
+    if (!loading) {
+      playMusic("level");
+    }
     if (!loading && isSpecialty) {
       setFreeHintAvailable(true);
     }
@@ -279,7 +295,7 @@ export default function GamePlay() {
       }}
       data-testid="gameplay-page"
     >
-      <GameNav player={player} onOpenShop={() => setShopOpen(true)} />
+      <GameNav player={player} onOpenShop={() => setShopOpen(true)} trackKey="level" />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Level header */}
@@ -337,22 +353,57 @@ export default function GamePlay() {
           </div>
         )}
 
+        {/* Hotspot scene — click an object to start its puzzle */}
+        {!completedAll && !introOpen && showScene && current && (
+          <div className="mb-5 animate-pop-in" data-testid="scene-container">
+            <HotspotScene
+              levelId={levelNum}
+              background={bg}
+              puzzles={puzzles}
+              solvedIds={solvedIds}
+              currentIdx={idx}
+              onPick={(i) => {
+                if (i === idx) {
+                  setShowScene(false);
+                } else {
+                  toast(
+                    `Solve the highlighted hotspot first to unlock the others!`
+                  );
+                }
+              }}
+            />
+            <p className="mt-2 text-center text-xs font-bold text-white/90 bg-slate-900/40 rounded-full inline-block px-3 py-1 ml-auto">
+              Tap the glowing object to inspect it.
+            </p>
+          </div>
+        )}
+
         {/* Puzzle */}
-        {!completedAll && !introOpen && current && (
+        {!completedAll && !introOpen && !showScene && current && (
           <div
             className="tactile-card bg-white p-6 sm:p-7 space-y-5 animate-pop-in"
             data-testid="puzzle-card"
           >
-            <div>
-              <span className="font-accent text-sm text-slate-500 uppercase">
-                {current.type} • {current.category}
-              </span>
-              <h2
-                className="font-display font-bold text-xl sm:text-2xl text-slate-900 mt-1"
-                data-testid="puzzle-question"
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <span className="font-accent text-sm text-slate-500 uppercase">
+                  {current.type} • {current.category}
+                </span>
+                <h2
+                  className="font-display font-bold text-xl sm:text-2xl text-slate-900 mt-1"
+                  data-testid="puzzle-question"
+                >
+                  {current.question}
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowScene(true)}
+                className="tactile-btn bg-white text-slate-800 px-3 py-2 text-xs"
+                data-testid="back-to-scene-button"
+                aria-label="Back to scene"
               >
-                {current.question}
-              </h2>
+                <MapIcon className="w-4 h-4" strokeWidth={3} />
+              </button>
             </div>
 
             {hintShown && (
@@ -485,6 +536,13 @@ export default function GamePlay() {
                 data-testid="back-to-map-button"
               >
                 Back to Map
+              </TactileButton>
+              <TactileButton
+                color="#F472B6"
+                onClick={() => navigate("/tetris")}
+                data-testid="play-tetris-interlude"
+              >
+                Quick Block Break
               </TactileButton>
               {levelNum < 5 ? (
                 <TactileButton

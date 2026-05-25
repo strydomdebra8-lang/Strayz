@@ -7,7 +7,7 @@ export const CHARACTERS = [
     specialty: "Math & Logic",
     color: "#4ADE80",
     image:
-      "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/4c457cbbd8301a772da03b1c2c926a6a4d75fb968868fd3d10d03d496ade3707.png",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=ChrisStrayz&backgroundColor=4ADE80&radius=20",
     bio: "The youngest Stray. Genius with numbers and never afraid to ask 'why?'",
   },
   {
@@ -18,7 +18,7 @@ export const CHARACTERS = [
     specialty: "Music & Arts",
     color: "#FB923C",
     image:
-      "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/26e2659bf0454a7bfd8a22076380f342a8e202f51ed12d126dea3b9c39521378.png",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=ArchieStrayz&backgroundColor=FB923C&radius=20",
     bio: "Teen prodigy with perfect pitch and an encyclopedic knowledge of music.",
   },
   {
@@ -29,7 +29,7 @@ export const CHARACTERS = [
     specialty: "History & Geography",
     color: "#38BDF8",
     image:
-      "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/26e2659bf0454a7bfd8a22076380f342a8e202f51ed12d126dea3b9c39521378.png",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=LynnStrayz&backgroundColor=38BDF8&radius=20",
     bio: "Backpacker who has trekked every continent. Reads ancient maps like comics.",
   },
   {
@@ -40,7 +40,7 @@ export const CHARACTERS = [
     specialty: "Science & Nature",
     color: "#A78BFA",
     image:
-      "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/4c457cbbd8301a772da03b1c2c926a6a4d75fb968868fd3d10d03d496ade3707.png",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=DebStrayz&backgroundColor=A78BFA&radius=20",
     bio: "Eldest sibling and lab whizz. Carries a thermos of coffee and a microscope.",
   },
 ];

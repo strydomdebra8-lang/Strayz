@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import TactileButton from "@/components/TactileButton";
 import { Check, RotateCcw } from "lucide-react";
+import { sfx } from "@/lib/sound";
 
 const COLORS = {
   red: "#F87171",
@@ -56,6 +57,7 @@ export default function PatternPuzzle({ puzzle, onSubmit, disabled }) {
 
   const pick = (tok) => {
     if (phase !== "input" || disabled) return;
+    sfx.pop();
     const next = [...picked, tok];
     setPicked(next);
     if (next.length === sequence.length) {

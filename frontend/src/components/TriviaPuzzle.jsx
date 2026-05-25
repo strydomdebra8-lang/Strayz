@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import TactileButton from "@/components/TactileButton";
+import { sfx } from "@/lib/sound";
 
 export default function TriviaPuzzle({ puzzle, onSubmit, disabled, locked }) {
   const [selected, setSelected] = useState(null);
@@ -10,6 +11,7 @@ export default function TriviaPuzzle({ puzzle, onSubmit, disabled, locked }) {
 
   const pick = (opt) => {
     if (disabled || locked) return;
+    sfx.click();
     setSelected(opt);
     onSubmit(opt);
   };
