@@ -1,0 +1,98 @@
+{
+  "theme": "Light",
+  "archetype": "6 (Vibrant Play)",
+  "design_philosophy": "A vibrant, family-friendly point-and-click adventure blending education with puzzle-solving. Uses chunky, tactile 'game-like' UI components (thick borders, offset shadows) inspired by Hay Day and Clash of Clans, paired with immersive storytelling backgrounds.",
+  "colors": {
+    "primary": "#38BDF8", 
+    "secondary": "#FBBF24",
+    "accent_green": "#4ADE80",
+    "accent_coral": "#FB923C",
+    "background_base": "#FEF3C7",
+    "surface": "#FFFFFF",
+    "text_main": "#1E3A8A",
+    "text_muted": "#64748B",
+    "border_hard": "#1E293B"
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Fredoka",
+      "body": "Nunito",
+      "accent": "Bebas Neue"
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight font-bold",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "body": "text-base sm:text-lg leading-relaxed",
+      "labels": "text-sm uppercase tracking-[0.2em] font-bold"
+    }
+  },
+  "layout_spacing": {
+    "spacing_scale": "Use generous padding: p-6 to p-12 for containers. Gap-6 to gap-8 for grids.",
+    "dashboard_grid": "Bento 'Control Room' Grid for progress and levels. grid-cols-1 md:grid-cols-3 gap-6. Use rounded-3xl for cards.",
+    "surfaces": "The 'Tactile' Variant: Solid flat backgrounds with a heavy 4px or 8px offset shadow (e.g., shadow-[4px_4px_0px_0px_#1E293B]) and thick borders to feel like a tactile toy."
+  },
+  "components": {
+    "buttons": "Chunky and rounded-full or rounded-2xl. Use vibrant primary/secondary colors with a solid dark offset shadow and border-2 border-slate-800. On hover, translate up and increase shadow.",
+    "cards": "White surface, border-4 border-slate-800, rounded-3xl, with playful internal padding (p-6 or p-8).",
+    "modals_dialogs": "Use Shadcn Dialog, but override styles to have thick borders, large rounded corners, and a colorful overlay (bg-slate-900/60 backdrop-blur-sm).",
+    "navigation": "Sticky top bar with glassmorphism OR solid vibrant background. Must include progress, coin balance, and current character avatar.",
+    "forms_inputs": "Shadcn components customized with rounded-xl, thick borders (border-2 border-slate-800), and a soft pastel focus ring."
+  },
+  "media_assets": {
+    "images": [
+      {
+        "category": "hero_background",
+        "url": "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/784f9b8b6afee81a87a38bd90f44cf7fa406c73f48f8ca49e030c7ac67bb8038.png",
+        "description": "Main Menu Title Background - Global map with ancient ruins"
+      },
+      {
+        "category": "level_1_background",
+        "url": "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/ce262c5d0850ca023fbce3be0b28c362dfc870f72bcbe51498f7cc87bb63bcd9.png",
+        "description": "Level 1 Background - Jungle and Ancient Ruins"
+      },
+      {
+        "category": "level_2_background",
+        "url": "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/b8a05d9cbc08d9fd76dd3e7637dbe54cf48f3530281b3bbcb1d0544b0641a79b.png",
+        "description": "Level 2 Background - Musical Museum/Library"
+      },
+      {
+        "category": "character_teen",
+        "url": "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/26e2659bf0454a7bfd8a22076380f342a8e202f51ed12d126dea3b9c39521378.png",
+        "description": "Teenage Adventurer Character Portrait"
+      },
+      {
+        "category": "character_kid",
+        "url": "https://static.prod-images.emergentagent.com/jobs/42ec3d3c-091c-44df-8238-21fdec8b0c5a/images/4c457cbbd8301a772da03b1c2c926a6a4d75fb968868fd3d10d03d496ade3707.png",
+        "description": "Smart Youth Boy Character Portrait"
+      },
+      {
+        "category": "in_app_purchase_icon",
+        "url": "https://images.unsplash.com/photo-1642211841112-2beeda7bfc07?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwzfHx0cmVhc3VyZSUyMGNoZXN0JTIwc2hpbnklMjBnb2xkJTIwY29pbnN8ZW58MHx8fHwxNzc5NzIwNzg0fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Treasure Chest / Gold Coins for Mock In-App Purchases"
+      }
+    ],
+    "icons": {
+      "library": "lucide-react",
+      "usage": "Use thick stroke-width (e.g., 2.5 or 3) to match the cartoony UI style."
+    }
+  },
+  "interactions_motion": {
+    "hover_states": "Interactive elements must bounce slightly (hover:-translate-y-1) and increase shadow depth. Active states must push down (active:translate-y-0) and reduce shadow to 0.",
+    "page_transitions": "Fade in with a slight scale-up (e.g., scale 0.95 to 1.0) to feel like entering a new game room.",
+    "accessibility": "Include focus rings (focus:ring-4 focus:ring-sky-300). Respect prefers-reduced-motion."
+  },
+  "testing": {
+    "requirements": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case (e.g., data-testid='level-1-button', data-testid='iap-buy-button')."
+  },
+  "special_instructions_for_main_agent": [
+    "Build the dashboard/level selector using a tactile Bento Grid layout. It should look like a world map or mission board.",
+    "The 'Point and Click' gameplay should be full-screen or large 16:9 container, using the provided Level backgrounds.",
+    "Overlay puzzle UI on top of the backgrounds using glassmorphism or thick-bordered cards to maintain legibility.",
+    "Use Shadcn components but override them aggressively to remove the 'Vercel look'. Add thick borders and hard shadows.",
+    "Mock the in-app purchase flow with a slide-out drawer or modal showing gem/coin packages.",
+    "Do NOT use pure white (#FFFFFF) for page backgrounds; use the specified background_base (#FEF3C7) to keep the warmth of a family game.",
+    "The game is Web/React based, ensure it's responsive but limit image heights to 80vh on mobile to prevent scrolling fatigue in point-and-click sections.",
+    "For JavaScript (not TS), make sure Shadcn components are implemented as standard JSX, not TSX."
+  ]
+}
