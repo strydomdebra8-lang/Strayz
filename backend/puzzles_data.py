@@ -1,7 +1,7 @@
 """Pre-defined puzzle bank for Strayz game."""
 
 PUZZLE_BANK = [
-    # ---------------- LEVEL 1: JUNGLE RUINS (Math & Logic) ----------------
+    # ---------------- LEVEL 1: JUNGLE RUINS (Math & Logic primary) ----------------
     {
         "level": 1,
         "type": "trivia",
@@ -25,6 +25,16 @@ PUZZLE_BANK = [
     {
         "level": 1,
         "type": "trivia",
+        "category": "nature",
+        "question": "Which jungle animal is famous for being the largest of the big cats in the Americas?",
+        "options": ["Cougar", "Ocelot", "Jaguar", "Panther"],
+        "answer": "Jaguar",
+        "hint": "Its name starts with J and it has rosette spots.",
+        "explanation": "The jaguar is the largest cat in the Americas and a symbol in Mayan culture.",
+    },
+    {
+        "level": 1,
+        "type": "trivia",
         "category": "math",
         "question": "The temple door requires the answer: If a vine grows 3 cm each day and is now 21 cm long, how many days has it been growing?",
         "options": ["5", "6", "7", "8"],
@@ -35,15 +45,15 @@ PUZZLE_BANK = [
     {
         "level": 1,
         "type": "trivia",
-        "category": "logic",
-        "question": "Three explorers each carry 2 torches. They meet 4 more explorers carrying 1 torch each. How many torches in total?",
-        "options": ["7", "10", "12", "9"],
-        "answer": "10",
-        "hint": "Count both groups: 3x2 and 4x1.",
-        "explanation": "(3×2) + (4×1) = 6 + 4 = 10 torches.",
+        "category": "history",
+        "question": "Which ancient civilisation built the iconic Mayan pyramids?",
+        "options": ["The Aztecs", "The Maya", "The Incas", "The Olmecs"],
+        "answer": "The Maya",
+        "hint": "Hint: it's literally in the pyramid's name.",
+        "explanation": "The Maya civilisation thrived in Mesoamerica from ~2000 BCE to 1500 CE.",
     },
 
-    # ---------------- LEVEL 2: MUSICAL MUSEUM (Music Trivia) ----------------
+    # ---------------- LEVEL 2: MUSICAL MUSEUM (Music primary) ----------------
     {
         "level": 2,
         "type": "trivia",
@@ -53,6 +63,16 @@ PUZZLE_BANK = [
         "answer": "Vivaldi",
         "hint": "He was an Italian Baroque composer.",
         "explanation": "Antonio Vivaldi composed 'The Four Seasons' around 1720.",
+    },
+    {
+        "level": 2,
+        "type": "trivia",
+        "category": "math",
+        "question": "If a song has 120 beats per minute, how many beats are in 30 seconds?",
+        "options": ["30", "60", "90", "120"],
+        "answer": "60",
+        "hint": "30 seconds is half a minute.",
+        "explanation": "120 BPM ÷ 2 = 60 beats in 30 seconds.",
     },
     {
         "level": 2,
@@ -67,7 +87,7 @@ PUZZLE_BANK = [
     {
         "level": 2,
         "type": "riddle",
-        "category": "music",
+        "category": "logic",
         "question": "I can be sharp or flat, but I'm never sick. I sit on a line or in a space. What am I?",
         "options": ["A note", "A pencil", "A bird", "A leaf"],
         "answer": "A note",
@@ -77,15 +97,15 @@ PUZZLE_BANK = [
     {
         "level": 2,
         "type": "trivia",
-        "category": "music",
-        "question": "Which instrument family does the saxophone belong to?",
-        "options": ["Brass", "String", "Woodwind", "Percussion"],
-        "answer": "Woodwind",
-        "hint": "Despite being made of metal, it uses a reed.",
-        "explanation": "The saxophone is a woodwind because it produces sound with a reed.",
+        "category": "geography",
+        "question": "Which country gave us the famous opera composer Giuseppe Verdi?",
+        "options": ["Germany", "Austria", "Italy", "France"],
+        "answer": "Italy",
+        "hint": "Land of pasta and pizza.",
+        "explanation": "Verdi (1813-1901) was an Italian composer renowned for opera.",
     },
 
-    # ---------------- LEVEL 3: ANCIENT LIBRARY (History & Geography) ----------------
+    # ---------------- LEVEL 3: ANCIENT LIBRARY (History & Geography primary) ----------------
     {
         "level": 3,
         "type": "trivia",
@@ -95,6 +115,16 @@ PUZZLE_BANK = [
         "answer": "Canberra",
         "hint": "It's not the biggest city.",
         "explanation": "Canberra is Australia's purpose-built capital city.",
+    },
+    {
+        "level": 3,
+        "type": "trivia",
+        "category": "music",
+        "question": "Which classical instrument did Wolfgang Amadeus Mozart first master as a child prodigy?",
+        "options": ["Harp", "Piano (then 'harpsichord')", "Violin only", "Cello"],
+        "answer": "Piano (then 'harpsichord')",
+        "hint": "It has black and white keys today.",
+        "explanation": "Mozart famously played the keyboard (harpsichord/piano) from age 3.",
     },
     {
         "level": 3,
@@ -109,7 +139,7 @@ PUZZLE_BANK = [
     {
         "level": 3,
         "type": "riddle",
-        "category": "geography",
+        "category": "logic",
         "question": "The more you take, the more you leave behind. What am I?",
         "options": ["Memories", "Footsteps", "Photos", "Time"],
         "answer": "Footsteps",
@@ -119,15 +149,15 @@ PUZZLE_BANK = [
     {
         "level": 3,
         "type": "trivia",
-        "category": "geography",
-        "question": "Which is the longest river in the world?",
-        "options": ["Amazon", "Nile", "Yangtze", "Mississippi"],
-        "answer": "Nile",
-        "hint": "It flows through Egypt.",
-        "explanation": "The Nile is approximately 6,650 km long.",
+        "category": "math",
+        "question": "An ancient scroll lists: II, IV, VIII, XVI, ?  What's next in Roman numerals?",
+        "options": ["XX", "XXIV", "XXX", "XXXII"],
+        "answer": "XXXII",
+        "hint": "Each is double the previous (Arabic: 2,4,8,16,?).",
+        "explanation": "2,4,8,16,32 — and 32 in Roman is XXXII.",
     },
 
-    # ---------------- LEVEL 4: SCIENCE LAB (Science & Nature) ----------------
+    # ---------------- LEVEL 4: SCIENCE LAB (Science & Nature primary) ----------------
     {
         "level": 4,
         "type": "trivia",
@@ -137,6 +167,16 @@ PUZZLE_BANK = [
         "answer": "Au",
         "hint": "From its Latin name 'aurum'.",
         "explanation": "Au comes from the Latin word 'aurum' meaning gold.",
+    },
+    {
+        "level": 4,
+        "type": "trivia",
+        "category": "history",
+        "question": "Which scientist famously stated 'E = mc²'?",
+        "options": ["Isaac Newton", "Albert Einstein", "Marie Curie", "Galileo Galilei"],
+        "answer": "Albert Einstein",
+        "hint": "Bushy hair, theory of relativity.",
+        "explanation": "Einstein published his mass-energy equivalence in 1905.",
     },
     {
         "level": 4,
@@ -161,15 +201,15 @@ PUZZLE_BANK = [
     {
         "level": 4,
         "type": "trivia",
-        "category": "science",
-        "question": "How many bones are in an adult human body?",
-        "options": ["186", "206", "226", "246"],
-        "answer": "206",
-        "hint": "Babies have more (around 270).",
-        "explanation": "Adults have 206 bones; many fuse together as we grow.",
+        "category": "music",
+        "question": "Sound waves travel fastest through which medium?",
+        "options": ["Air (gas)", "Water (liquid)", "Steel (solid)", "A vacuum"],
+        "answer": "Steel (solid)",
+        "hint": "Tightly packed molecules transmit vibrations quicker.",
+        "explanation": "Sound travels ~17x faster through steel than through air.",
     },
 
-    # ---------------- LEVEL 5: FINAL SHOWDOWN (Mixed) ----------------
+    # ---------------- LEVEL 5: FINAL SHOWDOWN (Mixed Mastery) ----------------
     {
         "level": 5,
         "type": "trivia",

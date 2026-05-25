@@ -166,27 +166,60 @@ async def get_levels():
 
 @api_router.get("/puzzles/{level}")
 async def get_puzzles_for_level(level: int, difficulty: str = "medium"):
-    """Return puzzles for a given level (without revealing answers)."""
+    """Return puzzles for a given level (without revealing answers).
+
+    Interleaves categories so two consecutive puzzles are never the same
+    subject (e.g. avoids math -> math -> math runs).
+    """
     if level < 1 or level > 5:
         raise HTTPException(status_code=400, detail="Invalid level")
 
     puzzles = [p for p in _PUZZLE_CACHE if p["level"] == level]
-    # Strip answers before sending to client
-    public_puzzles = []
-    for p in puzzles:
-        pub = {
-            "id": p["id"],
-            "level": p["level"],
-            "type": p["type"],
-            "category": p["category"],
-            "question": p["question"],
-            "options": p.get("options"),
-            "sequence": p.get("sequence"),
-        }
-        public_puzzles.append(pub)
 
+    # Optionally shuffle starting order
+    pool = list(puzzles)
     if difficulty == "hard":
-        random.shuffle(public_puzzles)
+        random.shuffle(pool)
+
+    # Greedy interleave: always pick the next puzzle whose category != last picked
+    interleaved: List[dict] = []
+    used = [False] * len(pool)
+    last_cat: Optional[str] = None
+    while True:
+        # Find first unused puzzle whose category differs from last_cat
+        chosen_idx = -1
+        for i, p in enumerate(pool):
+            if used[i]:
+                continue
+            if p["category"] != last_cat:
+                chosen_idx = i
+                break
+        if chosen_idx == -1:
+            # No category-distinct option left; pick any remaining
+            for i, p in enumerate(pool):
+                if not used[i]:
+                    chosen_idx = i
+                    break
+        if chosen_idx == -1:
+            break
+        used[chosen_idx] = True
+        interleaved.append(pool[chosen_idx])
+        last_cat = pool[chosen_idx]["category"]
+
+    # Strip answers
+    public_puzzles = []
+    for p in interleaved:
+        public_puzzles.append(
+            {
+                "id": p["id"],
+                "level": p["level"],
+                "type": p["type"],
+                "category": p["category"],
+                "question": p["question"],
+                "options": p.get("options"),
+                "sequence": p.get("sequence"),
+            }
+        )
 
     return {"level": level, "difficulty": difficulty, "puzzles": public_puzzles}
 
