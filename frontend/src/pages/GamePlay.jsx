@@ -22,6 +22,7 @@ import {
   BACKGROUNDS,
   LEVEL_INTROS,
   CHARACTER_SPECIALTY_LEVEL,
+  CHARACTER_FLAT_BONUS,
   getCharacterLine,
 } from "@/data/storyData";
 import {
@@ -93,11 +94,20 @@ export default function GamePlay() {
         difficulty,
       });
 
-      // Apply specialty bonus (once per level)
+      // Apply specialty bonus (once per level) + flat per-correct bonus (e.g. Arthur)
       let bonusCoins = 0;
+      let bonusLabel = "";
       if (result.correct && isSpecialty && !specialtyBonusGranted) {
-        bonusCoins = 10;
+        bonusCoins += 10;
         setSpecialtyBonusGranted(true);
+        bonusLabel = `${characterId.charAt(0).toUpperCase() + characterId.slice(1)}'s specialty +10`;
+      }
+      const flat = CHARACTER_FLAT_BONUS[characterId] || 0;
+      if (result.correct && flat > 0) {
+        bonusCoins += flat;
+        bonusLabel = bonusLabel
+          ? `${bonusLabel} · Coach bonus +${flat}`
+          : `Coach bonus +${flat} from ${characterId.charAt(0).toUpperCase() + characterId.slice(1)}!`;
       }
       const totalAwarded = result.coins_earned + bonusCoins;
       const enriched = { ...result, coins_earned: totalAwarded };
@@ -112,9 +122,7 @@ export default function GamePlay() {
         setCompanionSpeech(getCharacterLine(characterId, "onCorrect"));
         if (bonusCoins > 0) {
           toast.success(`Correct! +${result.coins_earned} coins`, {
-            description: `+${bonusCoins} specialty bonus from ${
-              characterId.charAt(0).toUpperCase() + characterId.slice(1)
-            }!`,
+            description: bonusLabel,
           });
         } else {
           toast.success(`Correct! +${result.coins_earned} coins`);

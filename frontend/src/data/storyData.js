@@ -3,54 +3,95 @@ export const CHARACTERS = [
     id: "chris",
     name: "Chris",
     age: 10,
+    gender: "male",
     role: "The Curious Whiz",
     specialty: "Math & Logic",
     color: "#4ADE80",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=ChrisStrayz&backgroundColor=4ADE80&radius=20",
-    bio: "The youngest Stray. Genius with numbers and never afraid to ask 'why?'",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=ChrisBoyStrayz&backgroundColor=4ADE80&radius=20",
+    bio: "The youngest Stray. A boy genius with numbers who never stops asking 'why?'",
+    family: "kid",
   },
   {
     id: "archie",
     name: "Archie",
     age: 16,
+    gender: "male",
     role: "The Music Maven",
     specialty: "Music & Arts",
     color: "#FB923C",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=ArchieStrayz&backgroundColor=FB923C&radius=20",
-    bio: "Teen prodigy with perfect pitch and an encyclopedic knowledge of music.",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=ArchieBoyStrayz&backgroundColor=FB923C&radius=20",
+    bio: "Teen lad with perfect pitch and an encyclopedic knowledge of music.",
+    family: "teen",
   },
   {
     id: "lynn",
     name: "Lynn",
     age: 22,
+    gender: "female",
     role: "The Explorer",
     specialty: "History & Geography",
     color: "#38BDF8",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=LynnStrayz&backgroundColor=38BDF8&radius=20",
-    bio: "Backpacker who has trekked every continent. Reads ancient maps like comics.",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=LynnGirlStrayz&backgroundColor=38BDF8&radius=20",
+    bio: "Young woman backpacker who has trekked every continent. Reads ancient maps like comics.",
+    family: "young-adult",
   },
   {
     id: "deb",
     name: "Deb",
     age: 28,
+    gender: "female",
     role: "The Scientist",
     specialty: "Science & Nature",
     color: "#A78BFA",
     image:
-      "https://api.dicebear.com/7.x/adventurer/svg?seed=DebStrayz&backgroundColor=A78BFA&radius=20",
-    bio: "Eldest sibling and lab whizz. Carries a thermos of coffee and a microscope.",
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=DebGirlStrayz&backgroundColor=A78BFA&radius=20",
+    bio: "Eldest sibling. Lab whizz with a thermos of coffee and a microscope.",
+    family: "young-adult",
+  },
+  {
+    id: "dolly",
+    name: "Dolly",
+    age: 48,
+    gender: "female",
+    role: "The Quizmaster Mum",
+    specialty: "General Knowledge & Home",
+    color: "#F472B6",
+    image:
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=DollyMomStrayz&backgroundColor=F472B6&radius=20",
+    bio: "Mum of the crew. A walking trivia encyclopedia who runs the cosy family base camp.",
+    family: "parent",
+  },
+  {
+    id: "arthur",
+    name: "Arthur",
+    age: 50,
+    gender: "male",
+    role: "The Sports Coach Dad",
+    specialty: "Sports & Endurance",
+    color: "#22D3EE",
+    image:
+      "https://api.dicebear.com/7.x/adventurer/svg?seed=ArthurDadStrayz&backgroundColor=22D3EE&radius=20",
+    bio: "Dad of the crew. Ex-athlete and sports nerd who cheers louder than anyone — earns the team a bonus on every correct answer.",
+    family: "parent",
   },
 ];
 
-// Each character's specialty maps to a level id (for bonus rewards)
+// Each character's specialty maps to a level id (for bonus rewards).
+// Arthur has no level match — instead he gives a flat +5 bonus on every correct answer (see GamePlay).
 export const CHARACTER_SPECIALTY_LEVEL = {
   chris: 1, // Math & Logic -> Jungle Ruins
   archie: 2, // Music -> Musical Museum
   lynn: 3, // History & Geography -> Ancient Library
   deb: 4, // Science -> Science Lab
+  dolly: 5, // General Knowledge -> Final Showdown (mixed)
+};
+
+// Flat per-correct bonus that applies regardless of level (Arthur's coach buff).
+export const CHARACTER_FLAT_BONUS = {
+  arthur: 5,
 };
 
 // Character-specific dialogue lines (chosen at random)
@@ -84,7 +125,7 @@ export const CHARACTER_DIALOGUES = {
       "Encore, encore!",
     ],
     onWrong: [
-      "A wrong note happens to the best of us.",
+      "A wrong note happens to the best of us, mate.",
       "Re-tune and try again!",
       "Even Mozart wrote a sour line now and then.",
     ],
@@ -143,6 +184,50 @@ export const CHARACTER_DIALOGUES = {
       "Hypothesis: we're about to crush this.",
     ],
   },
+  dolly: {
+    onCorrect: [
+      "Brilliant, love! Mum's proud.",
+      "Spot on — I'll put the kettle on to celebrate!",
+      "That's my clever bunch!",
+    ],
+    onWrong: [
+      "Chin up, dear — try again.",
+      "Take a deep breath, you've got this.",
+      "Even Mum gets the crossword wrong sometimes.",
+    ],
+    onIdle: [
+      "Did you know honey never spoils?",
+      "The dot over the letter 'i' is called a tittle.",
+      "A group of flamingos is called a flamboyance.",
+    ],
+    onLevelStart: [
+      "Right, who's ready for an adventure?",
+      "Pack a snack, this could be a long one!",
+      "Family powers — activate!",
+    ],
+  },
+  arthur: {
+    onCorrect: [
+      "Yes! Goal! Back of the net!",
+      "Champion! Coach is proud!",
+      "Atta team! Bonus coin coming through.",
+    ],
+    onWrong: [
+      "Shake it off and reset — we play on.",
+      "No fouls in learning, kid.",
+      "Next play, sharper focus.",
+    ],
+    onIdle: [
+      "A football match runs 90 minutes plus stoppage time.",
+      "Usain Bolt's top speed was around 12.4 metres per second.",
+      "The marathon distance (42.195 km) was set at the 1908 London Olympics.",
+    ],
+    onLevelStart: [
+      "Warm-up done — let's bring the energy!",
+      "Game face on, team!",
+      "Pace yourself and stay sharp.",
+    ],
+  },
 };
 
 function pickRandom(arr) {
@@ -158,23 +243,31 @@ export function getCharacterLine(characterId, mood) {
 export const STORY_INTRO = [
   {
     speaker: "Narrator",
-    text: "Welcome to STRAYZ — the chronicles of the Stray family, a quartet of youthful adventurers.",
+    text: "Welcome to STRAYZ — the chronicles of the Stray family, an adventurous crew of six.",
+  },
+  {
+    speaker: "Dolly",
+    text: "Mum here. Five priceless artifacts have vanished from museums around the world. Pack a snack — we're going!",
+  },
+  {
+    speaker: "Arthur",
+    text: "Dad reporting for duty. I'll keep us fit and cheering — extra coins for every correct answer when I'm on the team!",
   },
   {
     speaker: "Deb",
-    text: "Five priceless artifacts have been stolen from museums around the world. The trail is fresh!",
+    text: "I've calibrated the gear. Lab notebooks ready.",
   },
   {
     speaker: "Lynn",
-    text: "We have ancient maps, cryptic clues, and our wits. Each location guards its secrets.",
+    text: "Maps and compasses are packed. Each location guards its secrets.",
   },
   {
     speaker: "Archie",
-    text: "And don't forget the music codes! Some of these clues are hidden in melodies.",
+    text: "And music codes! Some of these clues are hidden in melodies.",
   },
   {
     speaker: "Chris",
-    text: "And the math puzzles! I've been practicing — let's GO!",
+    text: "And the math puzzles! I've been practising — let's GO!",
   },
   {
     speaker: "Narrator",

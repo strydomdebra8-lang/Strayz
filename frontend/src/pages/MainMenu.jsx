@@ -190,7 +190,7 @@ export default function MainMenu() {
               </Dialog>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
               {CHARACTERS.map((c) => {
                 const active = c.id === char;
                 return (
@@ -208,7 +208,7 @@ export default function MainMenu() {
                     data-testid={`character-card-${c.id}`}
                   >
                     <div
-                      className="w-full h-24 rounded-xl border-2 border-slate-800 overflow-hidden"
+                      className="w-full h-24 rounded-xl border-2 border-slate-800 overflow-hidden relative"
                       style={{ backgroundColor: c.color + "40" }}
                     >
                       <img
@@ -216,6 +216,14 @@ export default function MainMenu() {
                         alt={c.name}
                         className="w-full h-full object-cover"
                       />
+                      {c.family === "parent" && (
+                        <span
+                          className="absolute top-1 right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white border-2 border-slate-800 text-slate-800 uppercase"
+                          data-testid={`parent-badge-${c.id}`}
+                        >
+                          {c.gender === "female" ? "Mum" : "Dad"}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-2 font-display font-bold text-base text-slate-900">
                       {c.name}{" "}
@@ -223,7 +231,7 @@ export default function MainMenu() {
                         ({c.age})
                       </span>
                     </p>
-                    <p className="text-xs text-slate-700">{c.role}</p>
+                    <p className="text-xs text-slate-700 leading-tight">{c.role}</p>
                   </button>
                 );
               })}
