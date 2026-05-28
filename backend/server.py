@@ -750,7 +750,22 @@ async def generate_portrait(payload: PortraitGenRequest):
 @api_router.get("/leaderboard")
 async def get_leaderboard(limit: int = 10):
     """Top players by coins (desc)."""
-    cursor = db.players.find({}, {"_id": 0}).sort("coins", -1).limit(limit)
+    cursor = (
+        db.players.find(
+            {},
+            {
+                "_id": 0,
+                "player_id": 1,
+                "name": 1,
+                "coins": 1,
+                "level_stars": 1,
+                "levels_completed": 1,
+                "selected_character": 1,
+            },
+        )
+        .sort("coins", -1)
+        .limit(limit)
+    )
     docs = await cursor.to_list(length=limit)
     rows = []
     for d in docs:
@@ -1390,11 +1405,13 @@ async def list_friends(player_id: str):
         await db.players.insert_one(player)
     player = await _ensure_friend_code(player)
     ids = player.get("friends") or []
-    friend_data = []
-    for fid in ids:
-        f = await db.players.find_one({"player_id": fid}, {"_id": 0})
-        if f:
-            friend_data.append(_summary(f))
+    friend_docs = []
+    if ids:
+        friend_docs = await db.players.find(
+            {"player_id": {"$in": ids}}, {"_id": 0}
+        ).to_list(length=len(ids))
+    by_id = {f["player_id"]: f for f in friend_docs}
+    friend_data = [_summary(by_id[fid]) for fid in ids if fid in by_id]
     return {
         "my_code": player["friend_code"],
         "me": _summary(player),
@@ -1433,9 +1450,13 @@ async def duel_scores(player_id: str):
         me = PlayerProgress(player_id=player_id).model_dump()
         await db.players.insert_one(me)
     ids = [player_id] + list(me.get("friends") or [])
+    docs = await db.players.find(
+        {"player_id": {"$in": ids}}, {"_id": 0}
+    ).to_list(length=len(ids))
+    by_id = {p["player_id"]: p for p in docs}
     rows = []
     for pid in ids:
-        p = await db.players.find_one({"player_id": pid}, {"_id": 0})
+        p = by_id.get(pid)
         if not p:
             continue
         d = (p.get("duel") or {}).get(today)
