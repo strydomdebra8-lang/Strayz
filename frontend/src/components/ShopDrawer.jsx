@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Coins, Gem, Star, X } from "lucide-react";
+import { Coins, Gem, Star, X, Lock } from "lucide-react";
 import { toast } from "sonner";
 import TactileButton from "@/components/TactileButton";
-import { getShopPacks, purchasePack } from "@/lib/api";
+import { getShopPacks, createCheckoutSession } from "@/lib/api";
 import { getPlayerId } from "@/lib/gameStore";
 import { BACKGROUNDS } from "@/data/storyData";
 
@@ -20,17 +20,15 @@ export default function ShopDrawer({ open, onOpenChange, onPlayerUpdate }) {
   const buy = async (pack) => {
     setBusyId(pack.id);
     try {
-      const res = await purchasePack({
+      const res = await createCheckoutSession({
         player_id: getPlayerId(),
         pack_id: pack.id,
+        origin_url: window.location.origin,
       });
-      toast.success(`+${pack.coins} coins, +${pack.gems} gems!`, {
-        description: "Mock purchase — no real money charged.",
-      });
-      onPlayerUpdate?.(res.player);
-    } catch {
-      toast.error("Purchase failed. Try again.");
-    } finally {
+      // Redirect to Stripe Checkout (hosted page)
+      window.location.href = res.url;
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Could not start checkout");
       setBusyId(null);
     }
   };
@@ -58,8 +56,9 @@ export default function ShopDrawer({ open, onOpenChange, onPlayerUpdate }) {
               <X className="w-5 h-5" strokeWidth={3} />
             </button>
           </SheetHeader>
-          <p className="mt-2 text-white/90 text-sm font-semibold">
-            All purchases are MOCK — no real charges.
+          <p className="mt-2 text-white/90 text-sm font-semibold inline-flex items-center gap-1">
+            <Lock className="w-3 h-3" strokeWidth={3} />
+            Secure checkout via Stripe (test mode)
           </p>
         </div>
 

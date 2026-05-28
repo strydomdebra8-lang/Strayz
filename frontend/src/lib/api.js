@@ -21,6 +21,11 @@ export const updateProgress = (payload) =>
 export const getShopPacks = () => client.get("/shop/packs").then((r) => r.data);
 export const purchasePack = (payload) =>
   client.post("/shop/purchase", payload).then((r) => r.data);
+
+export const createCheckoutSession = (payload) =>
+  client.post("/checkout/session", payload).then((r) => r.data);
+export const getCheckoutStatus = (sessionId) =>
+  client.get(`/checkout/status/${sessionId}`).then((r) => r.data);
 export const generateAiRiddle = (payload) =>
   client.post("/ai/riddle", payload).then((r) => r.data);
 export const getDailyChallenge = () =>

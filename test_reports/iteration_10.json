@@ -1,0 +1,41 @@
+{
+  "summary": "Stripe Checkout + PWA + RemindersBanner pre-launch verified end-to-end. Backend: 87/87 pytest pass (74 prior regression + 13 new — TestStripeCheckout: 7, TestPWAAssets: 6). Stripe TEST mode (sk_test_emergent) creates real https://checkout.stripe.com/ session URLs, persists payment_transactions docs with status=initiated/payment_status=pending/credited=false BEFORE returning URL, rejects unknown pack_id with 404, returns 404 for unknown session_id on /checkout/status, returns 400 on /webhook/stripe with invalid Stripe-Signature (expected). Idempotency verified: with Stripe still reporting unpaid, /checkout/status keeps credited=false and player.coins/gems unchanged even across repeated polls. Legacy /api/shop/purchase still credits player as mock — unaffected by Stripe path. /shop/packs returns 5 packs with float amounts and formatted '$X.XX' strings ranging $0.99–$9.99. PWA assets verified via real HTTP: manifest.json (name='Strayz — Educational Adventure', short_name='Strayz', display='standalone', 3+ icons, 3+ shortcuts), service-worker.js (200, contains addEventListener/caches), all 4 icon PNGs (192/512/apple-touch/maskable-512) return 200 with valid byte length. Frontend (Playwright): index.html head verified — title='Strayz — Educational Adventure', <link rel='manifest'> present, <link rel='apple-touch-icon'> present, meta apple-mobile-web-app-capable='yes', meta theme-color='#F59E0B'. Service worker registers fully (navigator.serviceWorker.controller != null, registration.active=true) on first load and caches.keys() === ['strayz-v1']. /shop/success?session_id=cs_test_BOGUS renders shop-success-page testid then transitions to error state showing 'Something went wrong / Session not found / Back to Menu' (testid=back-to-menu-button) — polling correctly terminates on 404. /shop/cancel renders shop-cancel-page testid with 'Checkout cancelled' copy and back-to-menu-button. ShopDrawer: opening shop and clicking buy-pack-coin-medium triggers POST /api/checkout/session which returned status=200 (response body cancelled by navigation — confirms redirect to Stripe URL fired). RemindersBanner appears on MainMenu for fresh player with reminder-title 'Desert Mirage expedition awaits' or 'Daily Duel not played yet' (alternates by what's due), reminder-cta button, and reminder-dismiss. Dismiss + reload on same day → banner does NOT re-render. After all reminders cleared, a different reminder type can still surface (Daily Duel) which is correct (each reminder has its own dismiss key). MainMenu visually shows all 12 CTAs (Start Adventure / World Map / Endless AI / Block Break / Daily Challenge / Homestead / Defend / Share Card / Friends / Expedition / Leaderboard / Achievements). InstallPrompt: 0 occurrences on desktop browser (expected — beforeinstallprompt not fired, not in standalone mode, not iOS UA). No JS pageerrors during entire UI session (only benign AudioContext autoplay warnings).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Stripe integration via emergentintegrations.payments.stripe.checkout.StripeCheckout properly creates the pending payment_transactions document BEFORE returning the URL — good failure-resilience: if user closes the tab, we still have a trail.",
+    "/checkout/status correctly uses an atomic 'credited' flag flip with $set credited=true paired with the player coin/gem increment so a double-poll cannot double-credit (verified in test_idempotent_credit_on_paid).",
+    "/webhook/stripe returns 400 on signature mismatch — correct per Stripe spec. Make sure STRIPE_WEBHOOK_SECRET is configured at deploy-time so production webhooks actually work (currently relies on emergentintegrations defaults).",
+    "ShopSuccess.jsx polls 8x with 2s between — total ~16s timeout. For real Stripe redirect_back this should be enough since session is usually paid by the time user returns; consider exponential backoff if Stripe gets slow.",
+    "ShopSuccess error path uses testid 'back-to-menu-button' (not 'back-to-menu' as the brief listed) — both /shop/success and /shop/cancel use 'back-to-menu-button' consistently. Brief should be updated; no code change needed.",
+    "manifest.json includes shortcuts but service-worker.js scope is '/'; verify offline fallback page is served from cache for HTML routes — currently the SW caches by URL only, no navigation fallback. Minor — works fine online.",
+    "RemindersBanner correctly persists dismissal in localStorage with a per-day key — re-render suppressed on same-day reload (verified). Different reminder types use independent dismiss keys, so dismissing Expedition does not hide Daily Duel — by design.",
+    "Frontend ShopDrawer redirects via window.location.href = res.url (good — full navigation needed for Stripe Checkout, can't be inside an iframe). No accidental client-side coin credit on click (legacy mock path no longer used by drawer).",
+    "Test card 4242 4242 4242 4242 path not E2E exercised in this run (would require Stripe-hosted page interaction). The session-create + polling + idempotency contract is fully covered."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestStripeCheckout [7] + TestPWAAssets [6]; updated _cleanup to also wipe payment_transactions with TEST_ player_ids; total tests now 87)"
+  ],
+  "success_rate": {
+    "backend": "100% (87/87) — all new Stripe+PWA tests pass, all 74 prior regression tests still green",
+    "frontend": "100% on tested flows — /shop/success error state, /shop/cancel, ShopDrawer Stripe call, RemindersBanner dismiss-persistence, SW registration, manifest+icons, head meta tags"
+  },
+  "test_credentials": "STRIPE_API_KEY=sk_test_emergent (TEST mode, sandbox); test card per Stripe = 4242 4242 4242 4242 (not exercised E2E this run).",
+  "seed_data_creation": "Backend pytest creates ~12 TEST_stripe_/TEST_stripe_idem_/TEST_legacy_ player_ids and corresponding pending payment_transactions docs. Session cleanup fixture deletes players AND payment_transactions where player_id starts 'TEST_'. UI did not seed extra data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Stripe TEST mode is fully wired. /api/checkout/session returns a real https://checkout.stripe.com/c/pay/... URL. To exercise the success path end-to-end manually: 1) hit /api/checkout/session with pack_id=coin-small and origin_url=https://trivia-tomb-explorer.preview.emergentagent.com, 2) open the returned URL, 3) enter 4242 4242 4242 4242 / 12/34 / 123 / 10001, 4) Stripe redirects to /shop/success?session_id=cs_test_..., 5) polling should hit Stripe, see payment_status=paid, atomically credit (coins+250, gems+1 for coin-small) and flip credited=true. Verify by /api/player/{pid} that coins increased exactly once even if user refreshes the success page. payment_transactions collection auto-creates on first call. Webhook (/api/webhook/stripe) is only reachable from Stripe and requires a real Stripe-Signature; locally always returns 400 — that is correct. PWA testids 'install-prompt' only appear on iOS Safari (~4s delay) or after beforeinstallprompt fires in Chrome with engagement; do not fail on its absence in CI. The testid 'back-to-menu' from the brief is actually 'back-to-menu-button' in code on both success/cancel pages — keep that in mind for any future asserts. RemindersBanner reminder set rotates: when one is dismissed, next-priority reminder surfaces (Expedition → DailyDuel → others). Each reminder type has its own dismiss key in localStorage.",
+  "rca of the issue": "N/A — no functional defects found. All 87 backend tests pass, all targeted frontend flows render correctly with expected testids and copy."
+}

@@ -15,11 +15,16 @@ import DefenseTower from "@/pages/DefenseTower";
 import ShareCard from "@/pages/ShareCard";
 import Friends from "@/pages/Friends";
 import Expedition from "@/pages/Expedition";
+import ShopSuccess from "@/pages/ShopSuccess";
+import ShopCancel from "@/pages/ShopCancel";
+import InstallPrompt from "@/components/InstallPrompt";
 import { applyAccessibility } from "@/lib/gameStore";
+import { registerServiceWorker } from "@/lib/pwa";
 
 function App() {
   useEffect(() => {
     applyAccessibility();
+    registerServiceWorker();
   }, []);
   return (
     <div className="App" data-testid="strayz-app">
@@ -38,7 +43,10 @@ function App() {
           <Route path="/share" element={<ShareCard />} />
           <Route path="/friends" element={<Friends />} />
           <Route path="/expedition" element={<Expedition />} />
+          <Route path="/shop/success" element={<ShopSuccess />} />
+          <Route path="/shop/cancel" element={<ShopCancel />} />
         </Routes>
+        <InstallPrompt />
       </BrowserRouter>
       <Toaster position="top-center" richColors closeButton />
     </div>

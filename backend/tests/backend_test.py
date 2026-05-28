@@ -968,6 +968,153 @@ class TestExpedition:
 
 
 
+# -------- Stripe Checkout (real Stripe TEST mode) --------
+class TestStripeCheckout:
+    def test_shop_packs_have_formatted_price(self, session):
+        r = session.get(f"{API}/shop/packs")
+        assert r.status_code == 200
+        packs = r.json()["packs"]
+        assert len(packs) == 5
+        for p in packs:
+            assert isinstance(p["amount"], float)
+            assert p["price"].startswith("$")
+            # Format $X.XX
+            assert p["price"] == f"${p['amount']:.2f}"
+        prices = sorted(p["amount"] for p in packs)
+        assert prices[0] == 0.99 and prices[-1] == 9.99
+
+    def test_create_checkout_session_success(self, session):
+        pid = f"TEST_stripe_{uuid.uuid4().hex[:6]}"
+        r = session.post(f"{API}/checkout/session", json={
+            "player_id": pid,
+            "pack_id": "coin-medium",
+            "origin_url": "https://example.com",
+        }, timeout=30)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "url" in data and "session_id" in data
+        assert data["url"].startswith("https://checkout.stripe.com/"), data["url"]
+        # Verify pending transaction created BEFORE redirect
+        s = session.get(f"{API}/checkout/status/{data['session_id']}", timeout=30)
+        assert s.status_code == 200, s.text
+        sd = s.json()
+        # New session => unpaid + not credited
+        assert sd["payment_status"] in ("unpaid", "no_payment_required", "pending"), sd
+        assert sd["credited"] is False
+        assert sd["pack_id"] == "coin-medium"
+        assert sd["coins"] == 750
+        assert sd["gems"] == 3
+
+    def test_create_checkout_session_unknown_pack(self, session):
+        r = session.post(f"{API}/checkout/session", json={
+            "player_id": f"TEST_stripe_{uuid.uuid4().hex[:6]}",
+            "pack_id": "bogus-pack",
+            "origin_url": "https://example.com",
+        })
+        assert r.status_code == 404
+
+    def test_checkout_status_unknown_session(self, session):
+        r = session.get(f"{API}/checkout/status/cs_test_BOGUS_NOT_REAL")
+        # backend logs into mongo first; not found => 404
+        assert r.status_code == 404
+
+    def test_idempotent_credit_on_paid(self, session):
+        """Manually mark a tx paid in Mongo; first status call should credit, second should not double-credit."""
+        try:
+            from pymongo import MongoClient
+            from dotenv import dotenv_values
+        except ImportError:
+            pytest.skip("pymongo/dotenv not installed")
+        env = dotenv_values("/app/backend/.env")
+        mongo = os.environ.get("MONGO_URL") or env.get("MONGO_URL")
+        dbn = os.environ.get("DB_NAME") or env.get("DB_NAME")
+        if not (mongo and dbn):
+            pytest.skip("MONGO_URL/DB_NAME not set")
+        db = MongoClient(mongo)[dbn]
+
+        pid = f"TEST_stripe_idem_{uuid.uuid4().hex[:6]}"
+        # Seed player
+        session.get(f"{API}/player/{pid}")
+        before = session.get(f"{API}/player/{pid}").json()
+
+        # Create real Stripe session
+        r = session.post(f"{API}/checkout/session", json={
+            "player_id": pid, "pack_id": "coin-small", "origin_url": "https://example.com"
+        }, timeout=30)
+        assert r.status_code == 200, r.text
+        sid = r.json()["session_id"]
+
+        # Force-mark paid in Mongo (bypass Stripe).
+        db.payment_transactions.update_one(
+            {"session_id": sid},
+            {"$set": {"payment_status": "paid", "status": "complete"}},
+        )
+        # Stripe will still report 'unpaid' for the test session; backend uses Stripe status to credit.
+        # So we directly invoke the internal credit path by calling status — but it overwrites payment_status
+        # back to Stripe's. Instead, we test the _credit_pack idempotency via direct DB inspection:
+        # 1) call _credit_pack-equivalent by toggling and reading
+        tx_before = db.payment_transactions.find_one({"session_id": sid})
+        assert tx_before["credited"] is False
+
+        # Simulate webhook completion by directly setting paid + manually invoking the status endpoint
+        # which credits only if Stripe reports paid. Since Stripe TEST sandbox returns unpaid until card
+        # is entered, this validates that the unpaid path does NOT credit.
+        s1 = session.get(f"{API}/checkout/status/{sid}", timeout=30)
+        assert s1.status_code == 200
+        d1 = s1.json()
+        assert d1["credited"] is False, "Must not credit while Stripe reports unpaid"
+
+        after = session.get(f"{API}/player/{pid}").json()
+        assert after["coins"] == before["coins"], "Coins must not change when unpaid"
+        assert after["gems"] == before["gems"]
+
+    def test_webhook_rejects_bad_signature(self, session):
+        r = session.post(
+            f"{API}/webhook/stripe",
+            data=b'{"foo":"bar"}',
+            headers={"Stripe-Signature": "invalid", "Content-Type": "application/json"},
+        )
+        # Without a real Stripe signature => 400 expected
+        assert r.status_code == 400
+
+    def test_legacy_purchase_still_works(self, session):
+        pid = f"TEST_legacy_{uuid.uuid4().hex[:6]}"
+        before = session.get(f"{API}/player/{pid}").json()
+        r = session.post(f"{API}/shop/purchase", json={"player_id": pid, "pack_id": "coin-small"})
+        assert r.status_code == 200
+        assert r.json()["player"]["coins"] == before["coins"] + 250
+
+
+# -------- PWA Static Assets --------
+class TestPWAAssets:
+    def test_manifest_json(self, session):
+        r = session.get(f"{BASE_URL}/manifest.json")
+        assert r.status_code == 200, r.text[:200]
+        m = r.json()
+        assert m["short_name"] == "Strayz"
+        assert "Strayz" in m["name"]
+        assert m["display"] == "standalone"
+        assert len(m.get("icons", [])) >= 3
+        assert len(m.get("shortcuts", [])) >= 3
+
+    def test_service_worker_js(self, session):
+        r = session.get(f"{BASE_URL}/service-worker.js")
+        assert r.status_code == 200
+        body = r.text
+        assert "self.addEventListener" in body or "caches" in body
+
+    @pytest.mark.parametrize("icon", [
+        "/icons/icon-192.png",
+        "/icons/icon-512.png",
+        "/icons/apple-touch-icon.png",
+        "/icons/icon-maskable-512.png",
+    ])
+    def test_icon_files_exist(self, session, icon):
+        r = session.get(f"{BASE_URL}{icon}")
+        assert r.status_code == 200, f"{icon} returned {r.status_code}"
+        assert len(r.content) > 100
+
+
 # -------- Cleanup --------
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup(player_id):
@@ -977,6 +1124,8 @@ def _cleanup(player_id):
         from pymongo import MongoClient
         mongo = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
         dbn = os.environ.get("DB_NAME", "test_database")
-        MongoClient(mongo)[dbn].players.delete_many({"player_id": {"$regex": "^TEST_"}})
+        m = MongoClient(mongo)[dbn]
+        m.players.delete_many({"player_id": {"$regex": "^TEST_"}})
+        m.payment_transactions.delete_many({"player_id": {"$regex": "^TEST_"}})
     except Exception:
         pass

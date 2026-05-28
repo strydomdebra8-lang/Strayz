@@ -1,6 +1,6 @@
 """Strayz - educational point-and-click adventure game backend."""
 
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -26,6 +26,19 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+
+# Stripe SDK (loaded lazily so server still boots if key absent)
+try:
+    from emergentintegrations.payments.stripe.checkout import (
+        StripeCheckout,
+        CheckoutSessionRequest,
+    )
+    STRIPE_AVAILABLE = bool(STRIPE_API_KEY)
+except ImportError:  # pragma: no cover
+    StripeCheckout = None
+    CheckoutSessionRequest = None
+    STRIPE_AVAILABLE = False
 
 # ------------------- App -------------------
 app = FastAPI(title="Strayz API")
@@ -383,65 +396,198 @@ async def update_progress(payload: ProgressUpdate):
 
 
 # ------------------- Mock Shop -------------------
+# Server-side authoritative price catalog (in USD, FLOAT). Never trust frontend amounts.
+SHOP_PACKS = [
+    {"id": "coin-small", "name": "Pouch of Coins", "coins": 250, "gems": 0, "amount": 0.99, "color": "#FBBF24", "popular": False},
+    {"id": "coin-medium", "name": "Chest of Coins", "coins": 750, "gems": 3, "amount": 2.99, "color": "#FB923C", "popular": True},
+    {"id": "coin-large", "name": "Treasure Hoard", "coins": 2000, "gems": 10, "amount": 6.99, "color": "#F472B6", "popular": False},
+    {"id": "gem-pack", "name": "Sparkling Gems", "coins": 0, "gems": 25, "amount": 4.99, "color": "#A78BFA", "popular": False},
+    {"id": "explorer-bundle", "name": "Explorer Bundle", "coins": 1500, "gems": 15, "amount": 9.99, "color": "#38BDF8", "popular": False},
+]
+
+
+def _pack_by_id(pack_id: str) -> Optional[dict]:
+    return next((p for p in SHOP_PACKS if p["id"] == pack_id), None)
+
+
 @api_router.get("/shop/packs")
 async def get_shop_packs():
+    # Return packs with display prices ("$X.XX") for the UI.
     return {
         "packs": [
-            {
-                "id": "coin-small",
-                "name": "Pouch of Coins",
-                "coins": 250,
-                "gems": 0,
-                "price": "$0.99",
-                "color": "#FBBF24",
-                "popular": False,
-            },
-            {
-                "id": "coin-medium",
-                "name": "Chest of Coins",
-                "coins": 750,
-                "gems": 3,
-                "price": "$2.99",
-                "color": "#FB923C",
-                "popular": True,
-            },
-            {
-                "id": "coin-large",
-                "name": "Treasure Hoard",
-                "coins": 2000,
-                "gems": 10,
-                "price": "$6.99",
-                "color": "#F472B6",
-                "popular": False,
-            },
-            {
-                "id": "gem-pack",
-                "name": "Sparkling Gems",
-                "coins": 0,
-                "gems": 25,
-                "price": "$4.99",
-                "color": "#A78BFA",
-                "popular": False,
-            },
-            {
-                "id": "explorer-bundle",
-                "name": "Explorer Bundle",
-                "coins": 1500,
-                "gems": 15,
-                "price": "$9.99",
-                "color": "#38BDF8",
-                "popular": False,
-            },
+            {**p, "price": f"${p['amount']:.2f}"} for p in SHOP_PACKS
         ]
     }
 
 
+class CheckoutSessionStartRequest(BaseModel):
+    player_id: str
+    pack_id: str
+    origin_url: str
+
+
+@api_router.post("/checkout/session")
+async def create_checkout_session(payload: CheckoutSessionStartRequest, request: Request):
+    """Create a Stripe Checkout Session for one of the fixed coin/gem packs."""
+    if not STRIPE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Payments are temporarily unavailable")
+    pack = _pack_by_id(payload.pack_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail="Unknown pack")
+
+    host_url = str(request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+
+    origin = payload.origin_url.rstrip("/")
+    success_url = f"{origin}/shop/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/shop/cancel"
+
+    checkout_req = CheckoutSessionRequest(
+        amount=float(pack["amount"]),
+        currency="usd",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={
+            "player_id": payload.player_id,
+            "pack_id": pack["id"],
+            "source": "strayz_shop",
+        },
+    )
+    session = await stripe.create_checkout_session(checkout_req)
+
+    # Create pending payment_transactions record BEFORE redirect (idempotent).
+    await db.payment_transactions.insert_one(
+        {
+            "session_id": session.session_id,
+            "player_id": payload.player_id,
+            "pack_id": pack["id"],
+            "amount": float(pack["amount"]),
+            "currency": "usd",
+            "coins": pack["coins"],
+            "gems": pack["gems"],
+            "status": "initiated",
+            "payment_status": "pending",
+            "credited": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    return {"url": session.url, "session_id": session.session_id}
+
+
+async def _credit_pack(session_id: str) -> dict:
+    """Idempotent crediting: only credit once per session_id."""
+    tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if tx.get("credited"):
+        return tx
+    if tx.get("payment_status") != "paid":
+        return tx
+    # Credit the player
+    pid = tx["player_id"]
+    player = await db.players.find_one({"player_id": pid}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=pid).model_dump()
+        await db.players.insert_one(player)
+    player["coins"] = player.get("coins", 0) + tx.get("coins", 0)
+    player["gems"] = player.get("gems", 0) + tx.get("gems", 0)
+    await db.players.update_one(
+        {"player_id": pid},
+        {"$set": {"coins": player["coins"], "gems": player["gems"]}},
+        upsert=True,
+    )
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {"credited": True, "credited_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    tx["credited"] = True
+    return tx
+
+
+@api_router.get("/checkout/status/{session_id}")
+async def get_checkout_status(session_id: str, request: Request):
+    """Poll Stripe for payment status; credit the player exactly once on first 'paid'."""
+    if not STRIPE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Payments are temporarily unavailable")
+    tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    host_url = str(request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    status = await stripe.get_checkout_status(session_id)
+
+    # Update local transaction status
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "status": status.status,
+            "payment_status": status.payment_status,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    # Credit if newly paid
+    pack = _pack_by_id(tx["pack_id"]) or {}
+    credited = False
+    if status.payment_status == "paid":
+        if not tx.get("credited"):
+            await db.payment_transactions.update_one(
+                {"session_id": session_id},
+                {"$set": {"payment_status": "paid"}},
+            )
+            updated_tx = await _credit_pack(session_id)
+            credited = updated_tx.get("credited", False)
+        else:
+            credited = True
+    player = await db.players.find_one({"player_id": tx["player_id"]}, {"_id": 0})
+    return {
+        "session_id": session_id,
+        "status": status.status,
+        "payment_status": status.payment_status,
+        "amount": status.amount_total / 100.0 if status.amount_total else float(tx.get("amount", 0)),
+        "currency": status.currency,
+        "credited": credited,
+        "pack_id": tx["pack_id"],
+        "pack_name": pack.get("name", ""),
+        "coins": tx.get("coins", 0),
+        "gems": tx.get("gems", 0),
+        "player_coins": (player or {}).get("coins", 0),
+        "player_gems": (player or {}).get("gems", 0),
+    }
+
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    """Stripe webhook for event-driven fulfillment (also covers cases where the user closes the browser)."""
+    if not STRIPE_AVAILABLE:
+        return {"received": True, "skipped": True}
+    body = await request.body()
+    sig = request.headers.get("Stripe-Signature", "")
+    host_url = str(request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    try:
+        event = await stripe.handle_webhook(body, sig)
+    except Exception as e:  # pragma: no cover
+        logging.exception("Stripe webhook verification failed: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+    session_id = event.session_id
+    if session_id and event.payment_status == "paid":
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {"payment_status": "paid", "status": "complete"}},
+        )
+        await _credit_pack(session_id)
+    return {"received": True}
+
+
 @api_router.post("/shop/purchase")
 async def purchase_pack(payload: ShopPurchaseRequest):
-    packs_response = await get_shop_packs()
-    pack = next(
-        (p for p in packs_response["packs"] if p["id"] == payload.pack_id), None
-    )
+    """LEGACY: kept for the existing in-game free-mock flow when Stripe is unavailable.
+    Real money purchases must go through /api/checkout/session."""
+    pack = _pack_by_id(payload.pack_id)
     if not pack:
         raise HTTPException(status_code=404, detail="Pack not found")
 

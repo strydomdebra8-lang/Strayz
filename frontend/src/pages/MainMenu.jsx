@@ -4,6 +4,7 @@ import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarChe
 import TactileButton from "@/components/TactileButton";
 import ShopDrawer from "@/components/ShopDrawer";
 import GameNav from "@/components/GameNav";
+import RemindersBanner from "@/components/RemindersBanner";
 import Hero3D from "@/components/Hero3D";
 import PortraitEditor from "@/components/PortraitEditor";
 import AchievementsDrawer from "@/components/AchievementsDrawer";
@@ -87,6 +88,7 @@ export default function MainMenu() {
       data-testid="main-menu-page"
     >
       <GameNav player={player} onOpenShop={() => setShopOpen(true)} hideHome />
+      <RemindersBanner />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         {/* Hero */}
