@@ -607,6 +607,74 @@ async def get_daily_challenge():
     return {"date": today, "challenges": picks}
 
 
+# ------------------- Daily Login Streak -------------------
+@api_router.get("/login-streak/{player_id}")
+async def get_login_streak(player_id: str):
+    """Returns streak info + whether today's reward can be claimed."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    last = player.get("last_login_date")
+    streak = player.get("login_streak", 0)
+    if last == today:
+        can_claim = False
+    else:
+        # Did they miss any day?
+        if last:
+            try:
+                prev = datetime.strptime(last, "%Y-%m-%d").date()
+                t = datetime.strptime(today, "%Y-%m-%d").date()
+                diff = (t - prev).days
+                if diff > 1:
+                    streak = 0
+            except Exception:
+                streak = 0
+        can_claim = True
+    reward = min(200, max(10, (streak + 1) * 10))
+    return {
+        "streak": streak,
+        "next_streak": streak + 1 if can_claim else streak,
+        "reward": reward if can_claim else 0,
+        "can_claim": can_claim,
+        "today": today,
+        "last_claim": last,
+    }
+
+
+@api_router.post("/login-streak/claim")
+async def claim_login_streak(payload: LoginClaimRequest):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    player = await db.players.find_one({"player_id": payload.player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=payload.player_id).model_dump()
+    last = player.get("last_login_date")
+    streak = player.get("login_streak", 0)
+    if last == today:
+        return {"already_claimed": True, "streak": streak, "reward": 0}
+    if last:
+        try:
+            prev = datetime.strptime(last, "%Y-%m-%d").date()
+            t = datetime.strptime(today, "%Y-%m-%d").date()
+            diff = (t - prev).days
+            streak = streak + 1 if diff == 1 else 1
+        except Exception:
+            streak = 1
+    else:
+        streak = 1
+    reward = min(200, streak * 10)
+    player["last_login_date"] = today
+    player["login_streak"] = streak
+    player["coins"] = player.get("coins", 0) + reward
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": player},
+        upsert=True,
+    )
+    return {"streak": streak, "reward": reward, "player": player, "already_claimed": False}
+
+
 # ------------------- Wire-up -------------------
 app.include_router(api_router)
 
