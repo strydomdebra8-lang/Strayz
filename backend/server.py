@@ -10,7 +10,7 @@ import logging
 import random
 import uuid
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -126,6 +126,22 @@ class DuelSubmitRequest(BaseModel):
     player_id: str
     correct: int
     total: int
+
+
+class ExpeditionResolveRequest(BaseModel):
+    player_id: str
+    correct: int
+    total: int
+
+
+class ClaimTierRequest(BaseModel):
+    player_id: str
+    tier_index: int
+
+
+class ActivateFrameRequest(BaseModel):
+    player_id: str
+    frame_id: str
 
 
 # In-memory cache of all puzzles, generated with stable IDs
@@ -1290,6 +1306,275 @@ async def duel_scores(player_id: str):
         )
     rows.sort(key=lambda r: (-r["score"], 0 if r["is_me"] else 1, r["name"]))
     return {"date": today, "rows": rows}
+
+
+# ------------------- Stray Expedition (Weekly Seasonal Event) -------------------
+SEASON_THEMES = [
+    {"id": "cosmic", "name": "Cosmic Voyage", "color": "#7C3AED", "emoji": "🌌",
+     "category_hint": "music"},
+    {"id": "ocean", "name": "Ocean Depths", "color": "#0EA5E9", "emoji": "🌊",
+     "category_hint": "logic"},
+    {"id": "jungle", "name": "Jungle Trail", "color": "#16A34A", "emoji": "🌿",
+     "category_hint": "general"},
+    {"id": "sky", "name": "Sky Kingdom", "color": "#F59E0B", "emoji": "☁️",
+     "category_hint": "math"},
+    {"id": "forge", "name": "Volcanic Forge", "color": "#DC2626", "emoji": "🌋",
+     "category_hint": "pattern"},
+    {"id": "frost", "name": "Frostfall Pass", "color": "#06B6D4", "emoji": "❄️",
+     "category_hint": "logic"},
+    {"id": "desert", "name": "Desert Mirage", "color": "#EAB308", "emoji": "🏜️",
+     "category_hint": "general"},
+]
+
+# tier ladder: (xp_needed, reward_label, payload)
+TIER_LADDER = [
+    {"xp": 30, "label": "+50 coins", "reward": {"coins": 50}},
+    {"xp": 70, "label": "+1 gem", "reward": {"gems": 1}},
+    {"xp": 130, "label": "Themed frame", "reward": {"frame": "theme"}},
+    {"xp": 220, "label": "+150 coins", "reward": {"coins": 150}},
+    {"xp": 320, "label": "+3 gems", "reward": {"gems": 3}},
+    {"xp": 450, "label": "Golden frame", "reward": {"frame": "gold"}},
+]
+EXPEDITION_PUZZLES_PER_RUN = 3
+EXPEDITION_XP_PER_CORRECT = 8
+EXPEDITION_COMPLETION_BONUS = 10
+
+
+def _current_season_key() -> str:
+    now = datetime.now(timezone.utc)
+    iso = now.isocalendar()
+    return f"{iso.year}-W{iso.week:02d}"
+
+
+def _current_theme() -> dict:
+    iso = datetime.now(timezone.utc).isocalendar()
+    idx = (iso.year * 53 + iso.week) % len(SEASON_THEMES)
+    return SEASON_THEMES[idx]
+
+
+def _season_ends_in_seconds() -> int:
+    now = datetime.now(timezone.utc)
+    # End of ISO week = next Monday 00:00 UTC
+    days_until_monday = (7 - now.weekday()) % 7
+    if days_until_monday == 0:
+        days_until_monday = 7
+    end = (now + timedelta(days=days_until_monday)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return int((end - now).total_seconds())
+
+
+def _today_key() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def _default_expedition():
+    return {
+        "season_key": _current_season_key(),
+        "xp": 0,
+        "completed_days": [],
+        "claimed_tiers": [],
+    }
+
+
+def _ensure_expedition(player: dict) -> dict:
+    exp = player.get("expedition") or _default_expedition()
+    current = _current_season_key()
+    if exp.get("season_key") != current:
+        # New season — reset season-specific progress; keep cosmetics
+        exp = {
+            "season_key": current,
+            "xp": 0,
+            "completed_days": [],
+            "claimed_tiers": [],
+        }
+    player["expedition"] = exp
+    return exp
+
+
+def _theme_frame_id(theme: dict) -> str:
+    return f"frame-{theme['id']}"
+
+
+def _serialize_expedition(player: dict):
+    exp = _ensure_expedition(player)
+    theme = _current_theme()
+    today = _today_key()
+    completed_today = today in exp["completed_days"]
+    next_tier = None
+    for i, t in enumerate(TIER_LADDER):
+        if exp["xp"] < t["xp"]:
+            next_tier = {"index": i, "xp_needed": t["xp"], "label": t["label"]}
+            break
+    return {
+        "season_key": exp["season_key"],
+        "theme": theme,
+        "ends_in_seconds": _season_ends_in_seconds(),
+        "xp": exp["xp"],
+        "completed_today": completed_today,
+        "puzzles_per_run": EXPEDITION_PUZZLES_PER_RUN,
+        "tiers": [
+            {
+                **t,
+                "claimed": i in exp["claimed_tiers"],
+                "available": exp["xp"] >= t["xp"] and i not in exp["claimed_tiers"],
+            }
+            for i, t in enumerate(TIER_LADDER)
+        ],
+        "next_tier": next_tier,
+        "unlocked_frames": player.get("unlocked_frames") or [],
+        "active_frame": player.get("active_frame") or "none",
+        "theme_frame_id": _theme_frame_id(theme),
+    }
+
+
+@api_router.get("/expedition/season")
+async def expedition_season():
+    return {
+        "season_key": _current_season_key(),
+        "theme": _current_theme(),
+        "ends_in_seconds": _season_ends_in_seconds(),
+        "tiers": TIER_LADDER,
+        "puzzles_per_run": EXPEDITION_PUZZLES_PER_RUN,
+    }
+
+
+@api_router.get("/expedition/{player_id}")
+async def get_expedition(player_id: str):
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    payload = _serialize_expedition(player)
+    # persist any season-rollover changes
+    await db.players.update_one(
+        {"player_id": player_id},
+        {"$set": {"expedition": player["expedition"]}},
+    )
+    return {
+        "expedition": payload,
+        "coins": player.get("coins", 0),
+        "gems": player.get("gems", 0),
+    }
+
+
+@api_router.get("/expedition/today/start")
+async def expedition_today_start(player_id: str):
+    """Return today's themed puzzles (no answers leaked)."""
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    exp = _ensure_expedition(player)
+    if _today_key() in exp["completed_days"]:
+        raise HTTPException(status_code=400, detail="Today's expedition already completed. Come back tomorrow!")
+    theme = _current_theme()
+    # Pick by theme hint, fall back to any
+    hint = theme.get("category_hint")
+    pool = [p for p in _PUZZLE_CACHE if p.get("category") == hint] or _PUZZLE_CACHE
+    pool = [p for p in pool if p.get("type") != "pattern"] or list(_PUZZLE_CACHE)
+    picks = random.sample(pool, min(EXPEDITION_PUZZLES_PER_RUN, len(pool)))
+    return {
+        "theme": theme,
+        "puzzles": [
+            {
+                "id": p["id"],
+                "type": p["type"],
+                "category": p["category"],
+                "question": p["question"],
+                "options": p.get("options"),
+            }
+            for p in picks
+        ],
+    }
+
+
+@api_router.post("/expedition/today/resolve")
+async def expedition_today_resolve(payload: ExpeditionResolveRequest):
+    player = await db.players.find_one({"player_id": payload.player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=payload.player_id).model_dump()
+        await db.players.insert_one(player)
+    exp = _ensure_expedition(player)
+    today = _today_key()
+    if today in exp["completed_days"]:
+        raise HTTPException(status_code=400, detail="Already completed today")
+    correct = max(0, min(payload.correct, EXPEDITION_PUZZLES_PER_RUN))
+    xp_gained = correct * EXPEDITION_XP_PER_CORRECT + EXPEDITION_COMPLETION_BONUS
+    exp["xp"] += xp_gained
+    exp["completed_days"].append(today)
+    player["expedition"] = exp
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": {"expedition": exp}},
+    )
+    return {
+        "xp_gained": xp_gained,
+        "total_xp": exp["xp"],
+        "completed_today": True,
+    }
+
+
+@api_router.post("/expedition/claim")
+async def expedition_claim_tier(payload: ClaimTierRequest):
+    player = await db.players.find_one({"player_id": payload.player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=payload.player_id).model_dump()
+        await db.players.insert_one(player)
+    exp = _ensure_expedition(player)
+    if payload.tier_index < 0 or payload.tier_index >= len(TIER_LADDER):
+        raise HTTPException(status_code=400, detail="Invalid tier")
+    if payload.tier_index in exp["claimed_tiers"]:
+        raise HTTPException(status_code=400, detail="Already claimed")
+    tier = TIER_LADDER[payload.tier_index]
+    if exp["xp"] < tier["xp"]:
+        raise HTTPException(status_code=400, detail="Not enough XP yet")
+    reward = tier["reward"]
+    update = {"expedition": exp}
+    if "coins" in reward:
+        player["coins"] = player.get("coins", 0) + reward["coins"]
+        update["coins"] = player["coins"]
+    if "gems" in reward:
+        player["gems"] = player.get("gems", 0) + reward["gems"]
+        update["gems"] = player["gems"]
+    if "frame" in reward:
+        frame_id = (
+            _theme_frame_id(_current_theme()) if reward["frame"] == "theme" else "frame-gold"
+        )
+        frames = list(player.get("unlocked_frames") or [])
+        if frame_id not in frames:
+            frames.append(frame_id)
+        player["unlocked_frames"] = frames
+        update["unlocked_frames"] = frames
+    exp["claimed_tiers"] = sorted(set(exp["claimed_tiers"] + [payload.tier_index]))
+    update["expedition"] = exp
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": update},
+    )
+    return {
+        "tier": tier,
+        "reward": reward,
+        "coins": player.get("coins", 0),
+        "gems": player.get("gems", 0),
+        "unlocked_frames": player.get("unlocked_frames") or [],
+    }
+
+
+@api_router.post("/expedition/frame")
+async def activate_frame(payload: ActivateFrameRequest):
+    player = await db.players.find_one({"player_id": payload.player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=payload.player_id).model_dump()
+        await db.players.insert_one(player)
+    frames = player.get("unlocked_frames") or []
+    if payload.frame_id != "none" and payload.frame_id not in frames:
+        raise HTTPException(status_code=400, detail="Frame not unlocked")
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": {"active_frame": payload.frame_id}},
+    )
+    return {"active_frame": payload.frame_id}
 
 
 # ------------------- Wire-up -------------------

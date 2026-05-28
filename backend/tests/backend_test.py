@@ -820,6 +820,154 @@ class TestDailyDuel:
         assert rows[1]["player_id"] == b and rows[1]["played"] is False and rows[1]["score"] == 0
 
 
+# -------- Stray Expedition (Weekly Seasonal Event) --------
+class TestExpedition:
+    def test_season_endpoint(self, session):
+        r = session.get(f"{API}/expedition/season")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        import re
+        assert re.match(r"^\d{4}-W\d{2}$", d["season_key"]), d["season_key"]
+        assert d["puzzles_per_run"] == 3
+        assert len(d["tiers"]) == 6
+        theme = d["theme"]
+        for k in ("id", "name", "color", "emoji"):
+            assert k in theme
+        assert isinstance(d["ends_in_seconds"], int) and d["ends_in_seconds"] > 0
+
+    def test_get_expedition_autocreates(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/expedition/{pid}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        exp = d["expedition"]
+        assert exp["xp"] == 0
+        assert exp["completed_today"] is False
+        assert len(exp["tiers"]) == 6
+        # Each tier has claimed/available flags
+        for t in exp["tiers"]:
+            assert t["claimed"] is False
+            assert t["available"] is False
+        assert exp["next_tier"]["index"] == 0
+        assert exp["next_tier"]["xp_needed"] == 30
+        assert exp["active_frame"] == "none"
+        assert exp["unlocked_frames"] == []
+        assert exp["theme_frame_id"].startswith("frame-")
+        # player auto-created
+        p = session.get(f"{API}/player/{pid}").json()
+        assert p["player_id"] == pid
+
+    def test_today_start_returns_3_puzzles_no_answers(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/expedition/today/start", params={"player_id": pid})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert "theme" in d
+        assert len(d["puzzles"]) == 3
+        for p in d["puzzles"]:
+            assert "answer" not in p
+            assert "id" in p and "question" in p
+
+    def test_resolve_grants_xp_and_blocks_repeat(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/expedition/{pid}")
+        r = session.post(f"{API}/expedition/today/resolve", json={
+            "player_id": pid, "correct": 3, "total": 3
+        })
+        assert r.status_code == 200, r.text
+        d = r.json()
+        # 3*8 + 10 = 34
+        assert d["xp_gained"] == 34
+        assert d["total_xp"] == 34
+        assert d["completed_today"] is True
+        # Cannot resolve again same day
+        r2 = session.post(f"{API}/expedition/today/resolve", json={
+            "player_id": pid, "correct": 3, "total": 3
+        })
+        assert r2.status_code == 400
+        assert "already" in r2.json()["detail"].lower()
+        # today/start should also be blocked
+        r3 = session.get(f"{API}/expedition/today/start", params={"player_id": pid})
+        assert r3.status_code == 400
+
+    def test_claim_tier_insufficient_xp(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/expedition/{pid}")
+        r = session.post(f"{API}/expedition/claim", json={"player_id": pid, "tier_index": 0})
+        assert r.status_code == 400
+        assert "xp" in r.json()["detail"].lower()
+
+    def test_claim_tier0_coins_and_idempotent(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/expedition/{pid}")
+        # Earn 34 xp >= 30
+        session.post(f"{API}/expedition/today/resolve", json={
+            "player_id": pid, "correct": 3, "total": 3
+        })
+        before_coins = session.get(f"{API}/expedition/{pid}").json()["coins"]
+        r = session.post(f"{API}/expedition/claim", json={"player_id": pid, "tier_index": 0})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["reward"] == {"coins": 50}
+        assert d["coins"] == before_coins + 50
+        # second claim rejected
+        r2 = session.post(f"{API}/expedition/claim", json={"player_id": pid, "tier_index": 0})
+        assert r2.status_code == 400
+        assert "already" in r2.json()["detail"].lower()
+
+    def test_claim_themed_frame_and_activate(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/expedition/{pid}")
+        # Bypass UI: push xp to 999 directly via mongo
+        from pymongo import MongoClient
+        mongo = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+        dbn = os.environ.get("DB_NAME", "test_database")
+        col = MongoClient(mongo)[dbn].players
+        col.update_one({"player_id": pid}, {"$set": {"expedition.xp": 999}})
+        state = session.get(f"{API}/expedition/{pid}").json()
+        theme_frame = state["expedition"]["theme_frame_id"]
+        # claim tier 2 (themed frame)
+        r = session.post(f"{API}/expedition/claim", json={"player_id": pid, "tier_index": 2})
+        assert r.status_code == 200, r.text
+        assert theme_frame in r.json()["unlocked_frames"]
+        # activate frame
+        a = session.post(f"{API}/expedition/frame", json={
+            "player_id": pid, "frame_id": theme_frame
+        })
+        assert a.status_code == 200, a.text
+        assert a.json()["active_frame"] == theme_frame
+        # claim tier 5 (gold frame)
+        g = session.post(f"{API}/expedition/claim", json={"player_id": pid, "tier_index": 5})
+        assert g.status_code == 200, g.text
+        assert "frame-gold" in g.json()["unlocked_frames"]
+        # activate gold
+        ag = session.post(f"{API}/expedition/frame", json={
+            "player_id": pid, "frame_id": "frame-gold"
+        })
+        assert ag.json()["active_frame"] == "frame-gold"
+        # activate "none" always allowed
+        an = session.post(f"{API}/expedition/frame", json={
+            "player_id": pid, "frame_id": "none"
+        })
+        assert an.json()["active_frame"] == "none"
+
+    def test_activate_unowned_frame_rejected(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/expedition/{pid}")
+        r = session.post(f"{API}/expedition/frame", json={
+            "player_id": pid, "frame_id": "frame-gold"
+        })
+        assert r.status_code == 400
+        assert "unlock" in r.json()["detail"].lower()
+
+    def test_invalid_tier_index(self, session):
+        pid = f"TEST_exp_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/expedition/{pid}")
+        r = session.post(f"{API}/expedition/claim", json={"player_id": pid, "tier_index": 99})
+        assert r.status_code == 400
+
+
+
 # -------- Cleanup --------
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup(player_id):

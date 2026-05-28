@@ -64,4 +64,17 @@ export const submitDuelScore = (payload) =>
 export const getDuelScores = (playerId) =>
   client.get(`/duel/scores/${playerId}`).then((r) => r.data);
 
+export const getExpeditionSeason = () =>
+  client.get("/expedition/season").then((r) => r.data);
+export const getExpedition = (playerId) =>
+  client.get(`/expedition/${playerId}`).then((r) => r.data);
+export const startExpeditionToday = (playerId) =>
+  client.get("/expedition/today/start", { params: { player_id: playerId } }).then((r) => r.data);
+export const resolveExpeditionToday = (payload) =>
+  client.post("/expedition/today/resolve", payload).then((r) => r.data);
+export const claimExpeditionTier = (payload) =>
+  client.post("/expedition/claim", payload).then((r) => r.data);
+export const activateFrame = (payload) =>
+  client.post("/expedition/frame", payload).then((r) => r.data);
+
 export default client;

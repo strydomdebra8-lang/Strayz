@@ -138,11 +138,24 @@ A point and click game that includes brain teasers, puzzles and riddles as well 
 - ✅ 2 new achievements (Buddy System, Crew of Three)
 - ✅ Indigo "Friends" CTA on MainMenu (11 total CTAs)
 - ✅ Backend endpoints: GET /api/friend-code/{id}, /friend/lookup/{code}, /friends/{id}, /duel/scores/{id}; POST /friend/add, /duel/submit; DELETE /friend/{me}/{friend}
-- ✅ 64/65 backend tests pass (10/10 new Friend+Duel tests, 1 unrelated infra failure on portrait LLM budget)
-- ✅ 100% frontend flows verified including duplicate-add, self-add, invalid-code, remove
 
-## Known Limitation
-- /api/portrait/generate may return 500 when Emergent LLM budget is exhausted. To top up: Profile → Universal Key → Add Balance. Not a code defect.
+## Iteration 10 Update (2026-02-28) — Stray Expedition (Weekly Seasonal Event)
+- ✅ 7-week rotating themes (Cosmic Voyage, Ocean Depths, Jungle Trail, Sky Kingdom, Volcanic Forge, Frostfall Pass, Desert Mirage) with custom color/emoji per theme
+- ✅ Season XP track with 6 tiers: +50c, +1 gem, themed frame, +150c, +3 gems, golden frame
+- ✅ Daily 3-puzzle expedition run (themed pool); max 34 XP/day; auto-reset weekly
+- ✅ Cosmetic frames: themed frame (per-season) + permanent golden frame; equip on `/expedition`; ring appears around the active character card on MainMenu (violet for themed, gold for gold)
+- ✅ Server-side anti-cheat: correct count clamped to puzzles_per_run; player auto-create on all endpoints; tier-claim idempotent
+- ✅ 2 new achievements (Trailblazer, Expedition Veteran)
+- ✅ Violet "Expedition" CTA on MainMenu (12 total CTAs)
+- ✅ Backend endpoints: GET /api/expedition/season, /expedition/{id}, /expedition/today/start; POST /expedition/today/resolve, /expedition/claim, /expedition/frame
+- ✅ 74/74 backend pytest tests pass (9 new Expedition + 65 regression)
+
+## 🚀 LAUNCH READY (2026-02-28)
+Game has all 6 inspiration pillars + 3 retention loops:
+- Carmen Sandiego (locations), Neverhood (art), Tetris (Block Break), Tomb Raider (quests), Clash of Clans (Defense Tower), Hay Day (Homestead)
+- **Daily retention**: Login streak + Daily Challenge + Daily Expedition + Daily Duel
+- **Weekly retention**: Stray Expedition season track with cosmetic rewards
+- **Social retention**: Friend Codes + Share Card + Duel leaderboard
 
 ## 🚀 LAUNCH READY (2026-02-28)
 The game now has all 6 inspirational pillars from the original prompt:

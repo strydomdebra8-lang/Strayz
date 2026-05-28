@@ -107,6 +107,20 @@ export const ACHIEVEMENTS = [
     icon: "Users",
     color: "#0EA5E9",
   },
+  {
+    id: "first-expedition",
+    name: "Trailblazer",
+    desc: "Complete your first weekly expedition run.",
+    icon: "Compass",
+    color: "#7C3AED",
+  },
+  {
+    id: "expedition-veteran",
+    name: "Expedition Veteran",
+    desc: "Claim 3 season tier rewards.",
+    icon: "Gift",
+    color: "#F59E0B",
+  },
 ];
 
 export function getEarned() {

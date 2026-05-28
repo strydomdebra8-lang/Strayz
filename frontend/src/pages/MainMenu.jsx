@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy, Sprout, Swords, Share2, Users } from "lucide-react";
+import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy, Sprout, Swords, Share2, Users, Compass } from "lucide-react";
 import TactileButton from "@/components/TactileButton";
 import ShopDrawer from "@/components/ShopDrawer";
 import GameNav from "@/components/GameNav";
@@ -186,6 +186,15 @@ export default function MainMenu() {
               Friends
             </TactileButton>
             <TactileButton
+              color="#7C3AED"
+              size="xl"
+              icon={Compass}
+              onClick={() => navigate("/expedition")}
+              data-testid="open-expedition-button"
+            >
+              Expedition
+            </TactileButton>
+            <TactileButton
               color="#FBBF24"
               textColor="#1E293B"
               size="xl"
@@ -282,6 +291,11 @@ export default function MainMenu() {
                     }`}
                     style={{
                       backgroundColor: active ? c.color + "30" : "#FFFFFF",
+                      ...(active && player?.active_frame === "frame-gold"
+                        ? { boxShadow: "0 0 0 4px #FBBF24, 0 6px 0 0 #1E293B" }
+                        : active && player?.active_frame?.startsWith("frame-") && player?.active_frame !== "none"
+                        ? { boxShadow: "0 0 0 4px #7C3AED, 0 6px 0 0 #1E293B" }
+                        : {}),
                     }}
                     data-testid={`character-card-${c.id}`}
                   >
