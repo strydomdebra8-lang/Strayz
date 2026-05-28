@@ -75,7 +75,9 @@ export default function Friends() {
     try {
       const p = await getPlayer(playerId);
       setPlayer(p);
-    } catch {}
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") console.warn("getPlayer (Friends HUD) failed:", err);
+    }
   };
 
   useEffect(() => {

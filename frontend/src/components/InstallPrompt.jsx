@@ -19,7 +19,8 @@ function recentlyDismissed() {
     if (!ts) return false;
     const ageMs = Date.now() - ts;
     return ageMs < DISMISS_DAYS * 24 * 60 * 60 * 1000;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.warn("InstallPrompt: localStorage read failed", err);
     return false;
   }
 }
@@ -27,7 +28,9 @@ function recentlyDismissed() {
 function dismissNow() {
   try {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
-  } catch {}
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.warn("InstallPrompt: localStorage write failed", err);
+  }
 }
 
 /**
@@ -81,7 +84,10 @@ export default function InstallPrompt() {
       deferred.prompt();
       try {
         await deferred.userChoice;
-      } catch {}
+      } catch (err) {
+        // User dismissed the native prompt — expected, not an error.
+        if (process.env.NODE_ENV !== "production") console.warn("Install: userChoice rejected", err);
+      }
       setDeferred(null);
       setVisible(false);
     } else if (isIOS()) {

@@ -1577,6 +1577,14 @@ def _theme_frame_id(theme: dict) -> str:
     return f"frame-{theme['id']}"
 
 
+def _build_tier_row(idx: int, tier: dict, exp: dict) -> dict:
+    return {
+        **tier,
+        "claimed": idx in exp["claimed_tiers"],
+        "available": exp["xp"] >= tier["xp"] and idx not in exp["claimed_tiers"],
+    }
+
+
 def _serialize_expedition(player: dict):
     exp = _ensure_expedition(player)
     theme = _current_theme()
@@ -1594,14 +1602,7 @@ def _serialize_expedition(player: dict):
         "xp": exp["xp"],
         "completed_today": completed_today,
         "puzzles_per_run": EXPEDITION_PUZZLES_PER_RUN,
-        "tiers": [
-            {
-                **tier,
-                "claimed": idx in exp["claimed_tiers"],
-                "available": exp["xp"] >= tier["xp"] and idx not in exp["claimed_tiers"],
-            }
-            for idx, tier in enumerate(TIER_LADDER)
-        ],
+        "tiers": [_build_tier_row(i, t, exp) for i, t in enumerate(TIER_LADDER)],
         "next_tier": next_tier,
         "unlocked_frames": player.get("unlocked_frames") or [],
         "active_frame": player.get("active_frame") or "none",

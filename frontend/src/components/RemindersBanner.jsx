@@ -28,7 +28,9 @@ function dismiss(slug) {
       DISMISS_KEY,
       JSON.stringify({ date: todayKey(), slugs })
     );
-  } catch {}
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.warn("RemindersBanner: localStorage write failed", err);
+  }
 }
 
 /**

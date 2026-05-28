@@ -51,7 +51,9 @@ export default function DefenseTower() {
     try {
       const p = await getPlayer(playerId);
       setPlayer(p);
-    } catch {}
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") console.warn("getPlayer (DefenseTower HUD) failed:", err);
+    }
   };
 
   useEffect(() => {

@@ -110,8 +110,9 @@ Play at ${window.location.origin}`;
         text: shareText,
       });
       sfx.levelUp();
-    } catch {
-      /* user cancelled */
+    } catch (err) {
+      // User cancelled the share sheet — expected, not an error.
+      if (process.env.NODE_ENV !== "production") console.warn("ShareCard: navigator.share cancelled or failed", err);
     }
   };
 
