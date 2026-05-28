@@ -1408,7 +1408,20 @@ async def list_friends(player_id: str):
     friend_docs = []
     if ids:
         friend_docs = await db.players.find(
-            {"player_id": {"$in": ids}}, {"_id": 0}
+            {"player_id": {"$in": ids}},
+            {
+                "_id": 0,
+                "player_id": 1,
+                "name": 1,
+                "selected_character": 1,
+                "coins": 1,
+                "gems": 1,
+                "level_stars": 1,
+                "levels_completed": 1,
+                "homestead": 1,
+                "defense": 1,
+                "friend_code": 1,
+            },
         ).to_list(length=len(ids))
     by_id = {f["player_id"]: f for f in friend_docs}
     friend_data = [_summary(by_id[fid]) for fid in ids if fid in by_id]
@@ -1451,7 +1464,8 @@ async def duel_scores(player_id: str):
         await db.players.insert_one(me)
     ids = [player_id] + list(me.get("friends") or [])
     docs = await db.players.find(
-        {"player_id": {"$in": ids}}, {"_id": 0}
+        {"player_id": {"$in": ids}},
+        {"_id": 0, "player_id": 1, "name": 1, "selected_character": 1, "duel": 1},
     ).to_list(length=len(ids))
     by_id = {p["player_id"]: p for p in docs}
     rows = []
