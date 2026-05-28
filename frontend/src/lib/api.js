@@ -46,4 +46,7 @@ export const startRaid = (playerId) =>
 export const resolveRaid = (payload) =>
   client.post("/defense/raid/resolve", payload).then((r) => r.data);
 
+export const getShareCard = (playerId) =>
+  client.get(`/share-card/${playerId}`).then((r) => r.data);
+
 export default client;

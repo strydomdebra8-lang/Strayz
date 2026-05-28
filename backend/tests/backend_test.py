@@ -638,6 +638,59 @@ class TestDefense:
         assert g["raid_reward"] == 300
 
 
+# -------- Share Card --------
+class TestShareCard:
+    def test_share_card_auto_creates_player(self, session):
+        pid = f"TEST_share_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/share-card/{pid}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        # Required fields
+        for k in ["name", "character_id", "coins", "gems", "stars",
+                  "levels_completed", "raids_won", "wall_level",
+                  "homestead_level", "homestead_xp"]:
+            assert k in d, f"missing key {k}"
+        # Default player defaults
+        assert d["coins"] == 100
+        assert d["gems"] == 5
+        assert d["stars"] == 0
+        assert d["levels_completed"] == 0
+        assert d["raids_won"] == 0
+        assert d["wall_level"] == 1
+        assert d["homestead_level"] == 1
+        assert d["homestead_xp"] == 0
+        assert d["character_id"] == "chris"
+        assert d["name"] == "Adventurer"
+        # Player should now exist
+        p = session.get(f"{API}/player/{pid}")
+        assert p.status_code == 200
+        assert p.json()["player_id"] == pid
+
+    def test_share_card_reflects_progress(self, session):
+        pid = f"TEST_share_{uuid.uuid4().hex[:6]}"
+        # seed player
+        session.get(f"{API}/player/{pid}")
+        session.post(f"{API}/player", json={"player_id": pid, "coins": 750, "gems": 20, "name": "Hero", "selected_character": "deb"})
+        # complete level 1 with 3 stars
+        session.post(f"{API}/progress", json={"player_id": pid, "level": 1, "completed": True, "coins": 0, "stars": 3})
+        # win a raid
+        session.post(f"{API}/defense/raid/resolve", json={"player_id": pid, "correct": 5, "survived": True})
+        r = session.get(f"{API}/share-card/{pid}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["name"] == "Hero"
+        assert d["character_id"] == "deb"
+        assert d["levels_completed"] == 1
+        assert d["stars"] == 3
+        assert d["raids_won"] == 1
+        assert d["coins"] >= 750  # plus raid reward
+
+    def test_share_card_no_mongo_id(self, session):
+        pid = f"TEST_share_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/share-card/{pid}")
+        assert "_id" not in r.json()
+
+
 # -------- Cleanup --------
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup(player_id):

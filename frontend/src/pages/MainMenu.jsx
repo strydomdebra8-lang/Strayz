@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy, Sprout, Swords } from "lucide-react";
+import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy, Sprout, Swords, Share2 } from "lucide-react";
 import TactileButton from "@/components/TactileButton";
 import ShopDrawer from "@/components/ShopDrawer";
 import GameNav from "@/components/GameNav";
@@ -166,6 +166,15 @@ export default function MainMenu() {
               data-testid="open-defense-button"
             >
               Defend
+            </TactileButton>
+            <TactileButton
+              color="#EC4899"
+              size="xl"
+              icon={Share2}
+              onClick={() => navigate("/share")}
+              data-testid="open-share-button"
+            >
+              Share Card
             </TactileButton>
             <TactileButton
               color="#FBBF24"

@@ -1090,6 +1090,30 @@ async def resolve_raid(payload: RaidResolveRequest):
     }
 
 
+# ------------------- Share Card -------------------
+@api_router.get("/share-card/{player_id}")
+async def get_share_card(player_id: str):
+    """Aggregate player stats for a sharable card."""
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    defense = player.get("defense") or _default_defense()
+    home = player.get("homestead") or _default_homestead()
+    return {
+        "name": player.get("name", "Adventurer"),
+        "character_id": player.get("selected_character", "chris"),
+        "coins": player.get("coins", 0),
+        "gems": player.get("gems", 0),
+        "stars": sum((player.get("level_stars") or {}).values()),
+        "levels_completed": len(player.get("levels_completed") or []),
+        "raids_won": defense.get("raids_won", 0),
+        "wall_level": defense.get("wall_level", 1),
+        "homestead_level": _level_from_xp(home.get("xp", 0)),
+        "homestead_xp": home.get("xp", 0),
+    }
+
+
 # ------------------- Wire-up -------------------
 app.include_router(api_router)
 
