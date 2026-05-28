@@ -117,6 +117,17 @@ class RaidResolveRequest(BaseModel):
     survived: bool = False
 
 
+class FriendAddRequest(BaseModel):
+    player_id: str
+    friend_code: str
+
+
+class DuelSubmitRequest(BaseModel):
+    player_id: str
+    correct: int
+    total: int
+
+
 # In-memory cache of all puzzles, generated with stable IDs
 _PUZZLE_CACHE: List[dict] = []
 
@@ -1112,6 +1123,173 @@ async def get_share_card(player_id: str):
         "homestead_level": _level_from_xp(home.get("xp", 0)),
         "homestead_xp": home.get("xp", 0),
     }
+
+
+# ------------------- Friend Code & Daily Duel -------------------
+import string
+
+
+def _generate_friend_code():
+    return "STRY-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+
+
+def _summary(player: dict) -> dict:
+    """Public-safe summary of a player for share/friend lists."""
+    home = player.get("homestead") or {"xp": 0}
+    defense = player.get("defense") or {"wall_level": 1, "raids_won": 0}
+    return {
+        "player_id": player.get("player_id"),
+        "friend_code": player.get("friend_code"),
+        "name": player.get("name", "Adventurer"),
+        "character_id": player.get("selected_character", "chris"),
+        "coins": player.get("coins", 0),
+        "gems": player.get("gems", 0),
+        "stars": sum((player.get("level_stars") or {}).values()),
+        "levels_completed": len(player.get("levels_completed") or []),
+        "raids_won": defense.get("raids_won", 0),
+        "wall_level": defense.get("wall_level", 1),
+        "homestead_level": _level_from_xp(home.get("xp", 0)),
+    }
+
+
+async def _ensure_friend_code(player: dict) -> dict:
+    if player.get("friend_code"):
+        return player
+    # Generate unique code (try up to 10 times)
+    for _ in range(10):
+        code = _generate_friend_code()
+        existing = await db.players.find_one({"friend_code": code})
+        if not existing:
+            await db.players.update_one(
+                {"player_id": player["player_id"]},
+                {"$set": {"friend_code": code}},
+                upsert=True,
+            )
+            player["friend_code"] = code
+            return player
+    raise HTTPException(status_code=500, detail="Could not allocate friend code")
+
+
+@api_router.get("/friend-code/{player_id}")
+async def get_my_friend_code(player_id: str):
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    player = await _ensure_friend_code(player)
+    return {"friend_code": player["friend_code"]}
+
+
+@api_router.get("/friend/lookup/{code}")
+async def lookup_by_friend_code(code: str):
+    code = code.upper().strip()
+    target = await db.players.find_one({"friend_code": code}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="No player with that code")
+    return _summary(target)
+
+
+@api_router.post("/friend/add")
+async def add_friend(payload: FriendAddRequest):
+    code = payload.friend_code.upper().strip()
+    target = await db.players.find_one({"friend_code": code}, {"_id": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="Friend code not found")
+    if target["player_id"] == payload.player_id:
+        raise HTTPException(status_code=400, detail="You cannot add yourself")
+    me = await db.players.find_one({"player_id": payload.player_id}, {"_id": 0})
+    if not me:
+        me = PlayerProgress(player_id=payload.player_id).model_dump()
+        await db.players.insert_one(me)
+    friends = me.get("friends") or []
+    if target["player_id"] in friends:
+        return {"friend": _summary(target), "friends_count": len(friends), "already_added": True}
+    friends.append(target["player_id"])
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": {"friends": friends}},
+    )
+    return {"friend": _summary(target), "friends_count": len(friends), "already_added": False}
+
+
+@api_router.delete("/friend/{player_id}/{friend_player_id}")
+async def remove_friend(player_id: str, friend_player_id: str):
+    me = await db.players.find_one({"player_id": player_id}, {"_id": 0}) or {}
+    friends = [f for f in (me.get("friends") or []) if f != friend_player_id]
+    await db.players.update_one({"player_id": player_id}, {"$set": {"friends": friends}})
+    return {"friends_count": len(friends)}
+
+
+@api_router.get("/friends/{player_id}")
+async def list_friends(player_id: str):
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    player = await _ensure_friend_code(player)
+    ids = player.get("friends") or []
+    friend_data = []
+    for fid in ids:
+        f = await db.players.find_one({"player_id": fid}, {"_id": 0})
+        if f:
+            friend_data.append(_summary(f))
+    return {
+        "my_code": player["friend_code"],
+        "me": _summary(player),
+        "friends": friend_data,
+    }
+
+
+@api_router.post("/duel/submit")
+async def submit_duel(payload: DuelSubmitRequest):
+    today = datetime.now(timezone.utc).date().isoformat()
+    player = await db.players.find_one({"player_id": payload.player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=payload.player_id).model_dump()
+        await db.players.insert_one(player)
+    duel = player.get("duel") or {}
+    # Keep best score for today (don't overwrite a higher score)
+    prior = duel.get(today)
+    if not prior or payload.correct > prior.get("correct", 0):
+        duel[today] = {
+            "correct": payload.correct,
+            "total": payload.total,
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+        }
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": {"duel": duel}},
+    )
+    return {"date": today, "score": duel[today]}
+
+
+@api_router.get("/duel/scores/{player_id}")
+async def duel_scores(player_id: str):
+    today = datetime.now(timezone.utc).date().isoformat()
+    me = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not me:
+        me = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(me)
+    ids = [player_id] + list(me.get("friends") or [])
+    rows = []
+    for pid in ids:
+        p = await db.players.find_one({"player_id": pid}, {"_id": 0})
+        if not p:
+            continue
+        d = (p.get("duel") or {}).get(today)
+        rows.append(
+            {
+                "player_id": pid,
+                "name": p.get("name", "Adventurer"),
+                "character_id": p.get("selected_character", "chris"),
+                "score": d["correct"] if d else 0,
+                "total": d["total"] if d else 0,
+                "played": bool(d),
+                "is_me": pid == player_id,
+            }
+        )
+    rows.sort(key=lambda r: (-r["score"], 0 if r["is_me"] else 1, r["name"]))
+    return {"date": today, "rows": rows}
 
 
 # ------------------- Wire-up -------------------

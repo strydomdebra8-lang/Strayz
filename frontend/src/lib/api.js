@@ -49,4 +49,19 @@ export const resolveRaid = (payload) =>
 export const getShareCard = (playerId) =>
   client.get(`/share-card/${playerId}`).then((r) => r.data);
 
+export const getMyFriendCode = (playerId) =>
+  client.get(`/friend-code/${playerId}`).then((r) => r.data);
+export const lookupFriend = (code) =>
+  client.get(`/friend/lookup/${code}`).then((r) => r.data);
+export const addFriend = (payload) =>
+  client.post("/friend/add", payload).then((r) => r.data);
+export const removeFriend = (playerId, friendPlayerId) =>
+  client.delete(`/friend/${playerId}/${friendPlayerId}`).then((r) => r.data);
+export const listFriends = (playerId) =>
+  client.get(`/friends/${playerId}`).then((r) => r.data);
+export const submitDuelScore = (payload) =>
+  client.post("/duel/submit", payload).then((r) => r.data);
+export const getDuelScores = (playerId) =>
+  client.get(`/duel/scores/${playerId}`).then((r) => r.data);
+
 export default client;

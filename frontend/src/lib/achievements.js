@@ -93,6 +93,20 @@ export const ACHIEVEMENTS = [
     icon: "Castle",
     color: "#7C3AED",
   },
+  {
+    id: "first-friend",
+    name: "Buddy System",
+    desc: "Add your first friend by friend code.",
+    icon: "UserPlus",
+    color: "#6366F1",
+  },
+  {
+    id: "crew-of-three",
+    name: "Crew of Three",
+    desc: "Build a crew of 3 or more friends.",
+    icon: "Users",
+    color: "#0EA5E9",
+  },
 ];
 
 export function getEarned() {

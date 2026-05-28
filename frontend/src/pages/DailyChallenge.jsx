@@ -10,7 +10,7 @@ import CharacterCompanion from "@/components/CharacterCompanion";
 import { CHARACTERS, getCharacterLine } from "@/data/storyData";
 import { resolveCharacterImage } from "@/lib/portraits";
 import { sfx, playMusic } from "@/lib/sound";
-import { getDailyChallenge, submitAnswer, getPlayer, updateProgress } from "@/lib/api";
+import { getDailyChallenge, submitAnswer, getPlayer, updateProgress, submitDuelScore } from "@/lib/api";
 import { getPlayerId, getDifficulty, getCharacter } from "@/lib/gameStore";
 import { earn } from "@/lib/achievements";
 
@@ -79,10 +79,19 @@ export default function DailyChallenge() {
   };
 
   const next = () => {
+    const newIdx = idx + 1;
     setFeedback(null);
-    setIdx((i) => i + 1);
+    setIdx(newIdx);
     setCompanionMood("idle");
     setCompanionSpeech("");
+    // When the player finishes the whole daily run, submit duel score
+    if (data && newIdx >= total) {
+      submitDuelScore({
+        player_id: getPlayerId(),
+        correct: score,
+        total,
+      }).catch(() => {});
+    }
   };
 
   return (

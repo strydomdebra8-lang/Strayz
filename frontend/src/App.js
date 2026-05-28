@@ -13,6 +13,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import Homestead from "@/pages/Homestead";
 import DefenseTower from "@/pages/DefenseTower";
 import ShareCard from "@/pages/ShareCard";
+import Friends from "@/pages/Friends";
 import { applyAccessibility } from "@/lib/gameStore";
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/homestead" element={<Homestead />} />
           <Route path="/defense" element={<DefenseTower />} />
           <Route path="/share" element={<ShareCard />} />
+          <Route path="/friends" element={<Friends />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-center" richColors closeButton />

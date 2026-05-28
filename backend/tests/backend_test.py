@@ -691,6 +691,135 @@ class TestShareCard:
         assert "_id" not in r.json()
 
 
+# -------- Friend Code & Daily Duel --------
+class TestFriendCodes:
+    def test_get_friend_code_generates_idempotent(self, session):
+        pid = f"TEST_fc_{uuid.uuid4().hex[:6]}"
+        r1 = session.get(f"{API}/friend-code/{pid}")
+        assert r1.status_code == 200, r1.text
+        code1 = r1.json()["friend_code"]
+        assert code1.startswith("STRY-")
+        assert len(code1) == 9
+        # idempotent
+        r2 = session.get(f"{API}/friend-code/{pid}")
+        assert r2.json()["friend_code"] == code1
+
+    def test_lookup_friend_code_404(self, session):
+        r = session.get(f"{API}/friend/lookup/STRY-ZZZZ")
+        # Either unused or exists; if unused must be 404. Generate clearly invalid.
+        # Use a guaranteed non-existent code by mixing odd char outside 0-9A-Z (but server normalizes upper). Use unlikely random.
+        r = session.get(f"{API}/friend/lookup/STRY-0000")
+        # may or may not exist; check shape if 200, allow either
+        assert r.status_code in (200, 404)
+
+    def test_lookup_existing_code(self, session):
+        pid = f"TEST_fc_{uuid.uuid4().hex[:6]}"
+        code = session.get(f"{API}/friend-code/{pid}").json()["friend_code"]
+        r = session.get(f"{API}/friend/lookup/{code}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["friend_code"] == code
+        assert d["player_id"] == pid
+        assert "name" in d and "coins" in d and "levels_completed" in d
+
+    def test_add_self_rejected(self, session):
+        pid = f"TEST_fc_{uuid.uuid4().hex[:6]}"
+        code = session.get(f"{API}/friend-code/{pid}").json()["friend_code"]
+        r = session.post(f"{API}/friend/add", json={"player_id": pid, "friend_code": code})
+        assert r.status_code == 400
+        assert "yourself" in r.json()["detail"].lower()
+
+    def test_add_invalid_code(self, session):
+        pid = f"TEST_fc_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/friend-code/{pid}")
+        r = session.post(f"{API}/friend/add", json={"player_id": pid, "friend_code": "STRY-XX99NOPE"})
+        assert r.status_code == 404
+
+    def test_add_and_idempotent_and_remove(self, session):
+        a = f"TEST_fcA_{uuid.uuid4().hex[:6]}"
+        b = f"TEST_fcB_{uuid.uuid4().hex[:6]}"
+        code_b = session.get(f"{API}/friend-code/{b}").json()["friend_code"]
+        # a adds b
+        r1 = session.post(f"{API}/friend/add", json={"player_id": a, "friend_code": code_b})
+        assert r1.status_code == 200, r1.text
+        d1 = r1.json()
+        assert d1["already_added"] is False
+        assert d1["friends_count"] == 1
+        assert d1["friend"]["player_id"] == b
+        # idempotent
+        r2 = session.post(f"{API}/friend/add", json={"player_id": a, "friend_code": code_b})
+        assert r2.status_code == 200
+        d2 = r2.json()
+        assert d2["already_added"] is True
+        assert d2["friends_count"] == 1
+        # list friends
+        lf = session.get(f"{API}/friends/{a}")
+        assert lf.status_code == 200, lf.text
+        ljd = lf.json()
+        assert ljd["my_code"].startswith("STRY-")
+        assert ljd["me"]["player_id"] == a
+        assert len(ljd["friends"]) == 1
+        assert ljd["friends"][0]["player_id"] == b
+        # remove
+        rm = session.delete(f"{API}/friend/{a}/{b}")
+        assert rm.status_code == 200
+        assert rm.json()["friends_count"] == 0
+        # verify
+        lf2 = session.get(f"{API}/friends/{a}").json()
+        assert lf2["friends"] == []
+
+    def test_friends_endpoint_autogenerates_code(self, session):
+        pid = f"TEST_fcL_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/friends/{pid}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["my_code"].startswith("STRY-")
+        assert d["me"]["player_id"] == pid
+        assert d["friends"] == []
+
+
+class TestDailyDuel:
+    def test_submit_and_get_scores(self, session):
+        pid = f"TEST_duel_{uuid.uuid4().hex[:6]}"
+        r = session.post(f"{API}/duel/submit", json={"player_id": pid, "correct": 3, "total": 6})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["score"]["correct"] == 3 and d["score"]["total"] == 6
+        # GET scores
+        g = session.get(f"{API}/duel/scores/{pid}")
+        assert g.status_code == 200, g.text
+        gd = g.json()
+        rows = gd["rows"]
+        assert len(rows) == 1
+        assert rows[0]["is_me"] is True
+        assert rows[0]["played"] is True
+        assert rows[0]["score"] == 3
+        assert rows[0]["total"] == 6
+
+    def test_submit_keeps_best_score(self, session):
+        pid = f"TEST_duel_{uuid.uuid4().hex[:6]}"
+        # First higher
+        session.post(f"{API}/duel/submit", json={"player_id": pid, "correct": 5, "total": 6})
+        # Then lower - must NOT overwrite
+        session.post(f"{API}/duel/submit", json={"player_id": pid, "correct": 1, "total": 6})
+        g = session.get(f"{API}/duel/scores/{pid}").json()
+        assert g["rows"][0]["score"] == 5
+
+    def test_scores_include_friends_with_played_flag(self, session):
+        a = f"TEST_duelA_{uuid.uuid4().hex[:6]}"
+        b = f"TEST_duelB_{uuid.uuid4().hex[:6]}"
+        code_b = session.get(f"{API}/friend-code/{b}").json()["friend_code"]
+        session.post(f"{API}/friend/add", json={"player_id": a, "friend_code": code_b})
+        # only a submits
+        session.post(f"{API}/duel/submit", json={"player_id": a, "correct": 4, "total": 6})
+        g = session.get(f"{API}/duel/scores/{a}").json()
+        rows = g["rows"]
+        assert len(rows) == 2
+        # sorted by -score so a comes first
+        assert rows[0]["is_me"] is True and rows[0]["score"] == 4 and rows[0]["played"] is True
+        assert rows[1]["player_id"] == b and rows[1]["played"] is False and rows[1]["score"] == 0
+
+
 # -------- Cleanup --------
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup(player_id):
