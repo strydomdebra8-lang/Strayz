@@ -291,7 +291,8 @@ class TestPortraitGen:
         assert data["character_id"] == "chris"
         img = data["image"]
         assert isinstance(img, str)
-        assert img.startswith("data:image/png;base64,"), img[:60]
+        assert img.startswith("data:image/"), img[:60]
+        assert ";base64," in img, img[:60]
         b64 = img.split(",", 1)[1]
         import base64 as _b64
         raw = _b64.b64decode(b64, validate=False)

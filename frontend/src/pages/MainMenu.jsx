@@ -228,10 +228,18 @@ export default function MainMenu() {
               {CHARACTERS.map((c) => {
                 const active = c.id === char;
                 return (
-                  <button
+                  <div
                     key={c.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => pickCharacter(c.id)}
-                    className={`rounded-2xl border-4 p-3 text-left transition-all duration-200 ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        pickCharacter(c.id);
+                      }
+                    }}
+                    className={`cursor-pointer rounded-2xl border-4 p-3 text-left transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-amber-300 ${
                       active
                         ? "border-slate-900 tactile-shadow"
                         : "border-slate-300 hover:border-slate-600"
@@ -278,7 +286,7 @@ export default function MainMenu() {
                       </span>
                     </p>
                     <p className="text-xs text-slate-700 leading-tight">{c.role}</p>
-                  </button>
+                  </div>
                 );
               })}
             </div>

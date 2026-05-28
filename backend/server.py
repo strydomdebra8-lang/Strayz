@@ -518,7 +518,17 @@ async def generate_portrait(payload: PortraitGenRequest):
         if not images:
             raise HTTPException(status_code=500, detail="No image returned")
         img = images[0]
-        data_url = f"data:image/png;base64,{img['data']}"
+        raw = base64.b64decode(img["data"])
+        # Sniff MIME from magic bytes
+        if raw[:8] == b"\x89PNG\r\n\x1a\n":
+            mime = "image/png"
+        elif raw[:3] == b"\xff\xd8\xff":
+            mime = "image/jpeg"
+        elif raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+            mime = "image/webp"
+        else:
+            mime = "image/png"
+        data_url = f"data:{mime};base64,{img['data']}"
         return {"image": data_url, "character_id": payload.character_id}
     except HTTPException:
         raise

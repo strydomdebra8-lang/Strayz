@@ -8,6 +8,7 @@ import TactileButton from "@/components/TactileButton";
 import TriviaPuzzle from "@/components/TriviaPuzzle";
 import CharacterCompanion from "@/components/CharacterCompanion";
 import { CHARACTERS, getCharacterLine } from "@/data/storyData";
+import { resolveCharacterImage } from "@/lib/portraits";
 import { sfx, playMusic } from "@/lib/sound";
 import { getDailyChallenge, submitAnswer, getPlayer, updateProgress } from "@/lib/api";
 import { getPlayerId, getDifficulty, getCharacter } from "@/lib/gameStore";
@@ -126,7 +127,7 @@ export default function DailyChallenge() {
             <div className="flex items-center gap-3">
               {activeChar && (
                 <img
-                  src={activeChar.image}
+                  src={resolveCharacterImage(activeChar)}
                   alt={activeChar.name}
                   className="w-14 h-14 rounded-2xl border-4 border-slate-800 object-cover"
                   style={{ backgroundColor: (activeChar.color || "#fff") + "30" }}
