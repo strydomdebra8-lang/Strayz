@@ -150,6 +150,26 @@ A point and click game that includes brain teasers, puzzles and riddles as well 
 - ✅ Backend endpoints: GET /api/expedition/season, /expedition/{id}, /expedition/today/start; POST /expedition/today/resolve, /expedition/claim, /expedition/frame
 - ✅ 74/74 backend pytest tests pass (9 new Expedition + 65 regression)
 
+## Iteration 11 Update (2026-02-28) — Real Stripe Payments + PWA Install + Smart Reminders
+- ✅ **Real Stripe Checkout** for 5 coin/gem packs ($0.99–$9.99) via emergentintegrations SDK in TEST mode (sk_test_emergent)
+- ✅ Server-side authoritative price catalog — never trusts frontend amounts
+- ✅ Atomic idempotent crediting: payment_transactions doc pre-created BEFORE redirect, credited flag prevents double-credit on success-page refresh
+- ✅ `/shop/success` polling page (8× 2s) + `/shop/cancel` page
+- ✅ `/api/webhook/stripe` endpoint for event-driven fulfillment (signature-verified)
+- ✅ Legacy `/api/shop/purchase` kept for in-game free mock flows
+- ✅ **PWA installable** on iOS/Android/Desktop: manifest.json (3 icons + 3 shortcuts), service-worker.js (cache + offline navigation fallback), Apple touch icons, theme-color
+- ✅ Custom-generated app icons (192/512/maskable/apple-touch) from Chris portrait
+- ✅ Install prompt component: capture beforeinstallprompt on Chrome/Android, iOS Safari hint dialog with Share → Add to Home Screen instructions
+- ✅ **Smart RemindersBanner** on MainMenu: prioritises friend-beat-your-score → expedition-not-done → daily-not-played; per-reminder-per-day dismiss
+- ✅ 87/87 backend pytest tests pass (13 new Stripe+PWA tests, all prior regression green)
+- ✅ 100% frontend flows verified
+
+## Production launch checklist
+- [ ] Switch STRIPE_API_KEY in backend/.env to your live `sk_live_…` key (currently sk_test_emergent for sandbox)
+- [ ] Configure STRIPE_WEBHOOK_SECRET in backend/.env (from Stripe Dashboard → Developers → Webhooks → Endpoint signing secret)
+- [ ] Click "Save to Github" in chat to push code, then Deploy in Emergent dashboard
+- [ ] (Optional, $25): Wrap PWA as Trusted Web Activity for Google Play listing
+
 ## 🚀 LAUNCH READY (2026-02-28)
 Game has all 6 inspiration pillars + 3 retention loops:
 - Carmen Sandiego (locations), Neverhood (art), Tetris (Block Break), Tomb Raider (quests), Clash of Clans (Defense Tower), Hay Day (Homestead)
