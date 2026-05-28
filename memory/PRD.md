@@ -110,6 +110,24 @@ A point and click game that includes brain teasers, puzzles and riddles as well 
 - ✅ Fixed pre-existing backend crash: missing LoginClaimRequest model definition
 - ✅ 46/46 backend pytest tests pass; 14/14 frontend Homestead flows verified
 
+## Iteration 7 Update (2026-02-28) — Defense Tower (Clash of Clans Combat)
+- ✅ Strayz Defense Tower at `/defense` — castle wall visualization (grows with level), shields HUD
+- ✅ Raid system: 5 puzzles from main bank, lose shield on wrong, survive for coin reward
+- ✅ Wall upgrade ladder [150, 400, 900, 1800, 3500] → Lv6 = 8 shields, 300c per raid reward
+- ✅ Server-authoritative rewards (raid_reward derived from server wall_level, no client trust)
+- ✅ 2 new achievements (Castle Defender, Fortress Keeper)
+- ✅ Backend endpoints: GET /api/defense/{player_id}, /defense/raid/start, POST /defense/upgrade, /defense/raid/resolve
+- ✅ 52/52 backend pytest tests pass; 100% frontend Defense flows verified
+
+## 🚀 LAUNCH READY (2026-02-28)
+The game now has all 6 inspirational pillars from the original prompt:
+- Carmen Sandiego (point-and-click locations) ✓
+- The Neverhood (vibrant family-friendly art) ✓
+- Tetris (Block Break mini-game) ✓
+- Tomb Raider (artifact recovery quests) ✓
+- Clash of Clans (Defense Tower wall upgrades + raids) ✓
+- Hay Day (Homestead farming loop) ✓
+
 ## Known Limitations
 - Background music URLs (Mixkit) return 403 — feature degrades gracefully (SFX still works). User can replace with own tracks in `/app/frontend/src/lib/sound.js` BG_TRACKS.
 - Hero3D is CSS-based, not WebGL. True 3D requires R3F v9 + Node 22 (current env is Node 20).
