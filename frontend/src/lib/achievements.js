@@ -79,6 +79,20 @@ export const ACHIEVEMENTS = [
     icon: "Award",
     color: "#A78BFA",
   },
+  {
+    id: "first-raid-win",
+    name: "Castle Defender",
+    desc: "Survive your first raid at the Defense Tower.",
+    icon: "Shield",
+    color: "#EF4444",
+  },
+  {
+    id: "wall-fortress",
+    name: "Fortress Keeper",
+    desc: "Upgrade your wall to Level 3 or higher.",
+    icon: "Castle",
+    color: "#7C3AED",
+  },
 ];
 
 export function getEarned() {

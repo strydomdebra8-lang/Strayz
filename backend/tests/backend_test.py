@@ -534,6 +534,110 @@ class TestHomestead:
         assert r.status_code == 200, r.text
 
 
+# -------- Defense Tower --------
+class TestDefense:
+    def test_get_defense_defaults(self, session):
+        pid = f"TEST_def_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/defense/{pid}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["defense"]["wall_level"] == 1
+        assert d["defense"]["raids_won"] == 0
+        assert d["defense"]["raids_lost"] == 0
+        assert d["max_shields"] == 3
+        assert d["next_wall_cost"] == 150
+        assert d["max_wall_level"] == 6
+        assert d["raid_reward"] == 50
+        assert d["raid_puzzle_count"] == 5
+        assert d["coins"] == 100
+        assert d["gems"] == 5
+
+    def test_start_raid_no_answers(self, session):
+        pid = f"TEST_def_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/defense/raid/start", params={"player_id": pid})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["max_shields"] == 3
+        assert d["wall_level"] == 1
+        assert d["raid_reward"] == 50
+        assert len(d["puzzles"]) == 5
+        for p in d["puzzles"]:
+            assert "answer" not in p, "answer field leaked from raid start!"
+            assert p["type"] != "pattern", "raid should exclude pattern puzzles"
+            assert "id" in p and "question" in p and "options" in p
+
+    def test_resolve_raid_survived(self, session):
+        pid = f"TEST_def_{uuid.uuid4().hex[:6]}"
+        before = session.get(f"{API}/defense/{pid}").json()
+        before_coins = before["coins"]
+        r = session.post(f"{API}/defense/raid/resolve", json={
+            "player_id": pid, "correct": 5, "survived": True
+        })
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["survived"] is True
+        assert d["reward"] == 50
+        assert d["defense"]["raids_won"] == 1
+        assert d["defense"]["raids_lost"] == 0
+        assert d["coins"] == before_coins + 50
+        # Verify persistence
+        g = session.get(f"{API}/defense/{pid}").json()
+        assert g["defense"]["raids_won"] == 1
+        assert g["coins"] == before_coins + 50
+
+    def test_resolve_raid_lost(self, session):
+        pid = f"TEST_def_{uuid.uuid4().hex[:6]}"
+        before = session.get(f"{API}/defense/{pid}").json()
+        before_coins = before["coins"]
+        r = session.post(f"{API}/defense/raid/resolve", json={
+            "player_id": pid, "correct": 2, "survived": False
+        })
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["survived"] is False
+        assert d["reward"] == 0
+        assert d["defense"]["raids_lost"] == 1
+        assert d["defense"]["raids_won"] == 0
+        assert d["coins"] == before_coins  # no reward
+
+    def test_upgrade_wall_insufficient_coins(self, session):
+        pid = f"TEST_def_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/defense/{pid}")
+        # default 100 coins, first upgrade costs 150
+        r = session.post(f"{API}/defense/upgrade", json={"player_id": pid})
+        assert r.status_code == 400
+        assert "coins" in r.json()["detail"].lower()
+
+    def test_upgrade_wall_ladder(self, session):
+        """Upgrade through all 5 levels and verify cost ladder + reward/shield scaling."""
+        pid = f"TEST_def_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/defense/{pid}")
+        # seed enough coins: 150+400+900+1800+3500 = 6750
+        session.post(f"{API}/player", json={"player_id": pid, "coins": 10000, "gems": 5})
+        expected_costs = [150, 400, 900, 1800, 3500]
+        expected_levels = [2, 3, 4, 5, 6]
+        coins_remaining = 10000
+        for cost, lvl in zip(expected_costs, expected_levels):
+            r = session.post(f"{API}/defense/upgrade", json={"player_id": pid})
+            assert r.status_code == 200, f"L{lvl} failed: {r.text}"
+            d = r.json()
+            assert d["defense"]["wall_level"] == lvl, d
+            assert d["max_shields"] == lvl + 2
+            assert d["raid_reward"] == lvl * 50
+            coins_remaining -= cost
+            assert d["coins"] == coins_remaining
+        # At max - should reject
+        r = session.post(f"{API}/defense/upgrade", json={"player_id": pid})
+        assert r.status_code == 400
+        assert "max" in r.json()["detail"].lower()
+        # GET should also report next_wall_cost == 0
+        g = session.get(f"{API}/defense/{pid}").json()
+        assert g["next_wall_cost"] == 0
+        assert g["defense"]["wall_level"] == 6
+        assert g["max_shields"] == 8
+        assert g["raid_reward"] == 300
+
+
 # -------- Cleanup --------
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup(player_id):

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy, Sprout } from "lucide-react";
+import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy, Sprout, Swords } from "lucide-react";
 import TactileButton from "@/components/TactileButton";
 import ShopDrawer from "@/components/ShopDrawer";
 import GameNav from "@/components/GameNav";
@@ -157,6 +157,15 @@ export default function MainMenu() {
               data-testid="open-homestead-button"
             >
               Homestead
+            </TactileButton>
+            <TactileButton
+              color="#EF4444"
+              size="xl"
+              icon={Swords}
+              onClick={() => navigate("/defense")}
+              data-testid="open-defense-button"
+            >
+              Defend
             </TactileButton>
             <TactileButton
               color="#FBBF24"

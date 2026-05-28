@@ -37,4 +37,13 @@ export const boostCrop = (payload) =>
 export const expandHomestead = (payload) =>
   client.post("/homestead/expand", payload).then((r) => r.data);
 
+export const getDefense = (playerId) =>
+  client.get(`/defense/${playerId}`).then((r) => r.data);
+export const upgradeWall = (payload) =>
+  client.post("/defense/upgrade", payload).then((r) => r.data);
+export const startRaid = (playerId) =>
+  client.get(`/defense/raid/start`, { params: { player_id: playerId } }).then((r) => r.data);
+export const resolveRaid = (payload) =>
+  client.post("/defense/raid/resolve", payload).then((r) => r.data);
+
 export default client;

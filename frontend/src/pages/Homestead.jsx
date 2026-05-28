@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,7 @@ import TactileButton from "@/components/TactileButton";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -54,7 +55,6 @@ export default function Homestead() {
   const [shopOpen, setShopOpen] = useState(false);
   const [player, setPlayer] = useState(null);
   const [tick, setTick] = useState(0);
-  const planted_at_ref = useRef({});
 
   const playerId = getPlayerId();
 
@@ -458,6 +458,9 @@ export default function Homestead() {
             <DialogTitle className="font-display text-2xl">
               Plant a Crop
             </DialogTitle>
+            <DialogDescription className="text-slate-700">
+              Choose a crop to plant. Each crop costs coins and rewards you when it&apos;s ready to harvest.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-2">
             {crops.map((c) => {

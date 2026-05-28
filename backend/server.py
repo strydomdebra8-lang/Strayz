@@ -107,6 +107,16 @@ class HomesteadBoostRequest(BaseModel):
     plot_index: int
 
 
+class DefenseUpgradeRequest(BaseModel):
+    player_id: str
+
+
+class RaidResolveRequest(BaseModel):
+    player_id: str
+    correct: int = 0
+    survived: bool = False
+
+
 # In-memory cache of all puzzles, generated with stable IDs
 _PUZZLE_CACHE: List[dict] = []
 
@@ -949,6 +959,132 @@ async def expand_homestead(payload: HomesteadExpandRequest):
     await _save_homestead(payload.player_id, player, home)
     return {
         "homestead": _serialize_homestead(home),
+        "coins": player["coins"],
+        "gems": player.get("gems", 0),
+    }
+
+
+# ------------------- Strayz Defense Tower (Clash of Clans style raids) -------------------
+WALL_COSTS = [0, 150, 400, 900, 1800, 3500]  # index = current level; cost to advance
+MAX_WALL_LEVEL = 6
+RAID_PUZZLE_COUNT = 5
+
+
+def _default_defense():
+    return {"wall_level": 1, "raids_won": 0, "raids_lost": 0}
+
+
+def _max_shields(wall_level: int) -> int:
+    return wall_level + 2  # Lv1 → 3 shields, Lv6 → 8 shields
+
+
+def _raid_reward(wall_level: int) -> int:
+    return 50 * wall_level
+
+
+async def _load_defense(player_id: str):
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    defense = player.get("defense") or _default_defense()
+    return player, defense
+
+
+@api_router.get("/defense/{player_id}")
+async def get_defense(player_id: str):
+    player, defense = await _load_defense(player_id)
+    return {
+        "defense": defense,
+        "max_shields": _max_shields(defense["wall_level"]),
+        "next_wall_cost": (
+            WALL_COSTS[defense["wall_level"]]
+            if defense["wall_level"] < MAX_WALL_LEVEL
+            else 0
+        ),
+        "max_wall_level": MAX_WALL_LEVEL,
+        "raid_reward": _raid_reward(defense["wall_level"]),
+        "raid_puzzle_count": RAID_PUZZLE_COUNT,
+        "coins": player.get("coins", 0),
+        "gems": player.get("gems", 0),
+    }
+
+
+@api_router.post("/defense/upgrade")
+async def upgrade_wall(payload: DefenseUpgradeRequest):
+    player, defense = await _load_defense(payload.player_id)
+    if defense["wall_level"] >= MAX_WALL_LEVEL:
+        raise HTTPException(status_code=400, detail="Wall already at max level")
+    cost = WALL_COSTS[defense["wall_level"]]
+    if player.get("coins", 0) < cost:
+        raise HTTPException(status_code=400, detail="Not enough coins")
+    player["coins"] = player.get("coins", 0) - cost
+    defense["wall_level"] += 1
+    player["defense"] = defense
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": player},
+        upsert=True,
+    )
+    return {
+        "defense": defense,
+        "max_shields": _max_shields(defense["wall_level"]),
+        "next_wall_cost": (
+            WALL_COSTS[defense["wall_level"]]
+            if defense["wall_level"] < MAX_WALL_LEVEL
+            else 0
+        ),
+        "raid_reward": _raid_reward(defense["wall_level"]),
+        "coins": player["coins"],
+        "gems": player.get("gems", 0),
+    }
+
+
+@api_router.get("/defense/raid/start")
+async def start_raid(player_id: str):
+    """Return a wave of puzzles for a raid. Answers stripped."""
+    player, defense = await _load_defense(player_id)
+    candidates = [p for p in _PUZZLE_CACHE if p.get("type") != "pattern"]
+    if len(candidates) == 0:
+        raise HTTPException(status_code=500, detail="No puzzles available")
+    picks = random.sample(candidates, min(RAID_PUZZLE_COUNT, len(candidates)))
+    return {
+        "max_shields": _max_shields(defense["wall_level"]),
+        "wall_level": defense["wall_level"],
+        "raid_reward": _raid_reward(defense["wall_level"]),
+        "puzzles": [
+            {
+                "id": p["id"],
+                "type": p["type"],
+                "category": p["category"],
+                "question": p["question"],
+                "options": p.get("options"),
+            }
+            for p in picks
+        ],
+    }
+
+
+@api_router.post("/defense/raid/resolve")
+async def resolve_raid(payload: RaidResolveRequest):
+    player, defense = await _load_defense(payload.player_id)
+    reward = _raid_reward(defense["wall_level"]) if payload.survived else 0
+    if payload.survived:
+        defense["raids_won"] = defense.get("raids_won", 0) + 1
+    else:
+        defense["raids_lost"] = defense.get("raids_lost", 0) + 1
+    player["coins"] = player.get("coins", 0) + reward
+    player["defense"] = defense
+    await db.players.update_one(
+        {"player_id": payload.player_id},
+        {"$set": player},
+        upsert=True,
+    )
+    return {
+        "defense": defense,
+        "reward": reward,
+        "survived": payload.survived,
+        "correct": payload.correct,
         "coins": player["coins"],
         "gems": player.get("gems", 0),
     }
