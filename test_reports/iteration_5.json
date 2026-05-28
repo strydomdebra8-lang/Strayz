@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 5 — Tested portrait editor + AI-generation backend, leaderboard backend & page, achievements drawer (8 badges), and 7-CTA main menu. Added TestLeaderboard (2) and TestPortraitGen (1) to backend_test.py. 30/30 pytest pass (regression incl. all 27 prior tests). Frontend: all 7 CTAs, all 6 edit-portrait buttons, achievements drawer (8), leaderboard (15 rows + medals top-3), portrait upload→preview→save→localStorage→achievement unlock, and override propagation to MainMenu + /play/1 (HotspotScene) all working. Two real defects found: (1) DailyChallenge does not honour the portrait override, (2) edit-portrait button is nested inside character-card button (invalid HTML + React hydration error in console).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/portrait/generate", "issue": "Server hardcodes data URL prefix 'data:image/png;base64,' but Gemini Nano Banana actually returns a JPEG payload (magic bytes \\xff\\xd8\\xff\\xe0). Browsers tolerate the MIME/byte mismatch and render fine, but the declared MIME is wrong. Recommend sniffing the bytes (PNG vs JPEG vs WEBP) and emitting the correct data:image/<type>;base64,..."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MainMenu character-card", "issue": "Invalid HTML / React hydration error: <button data-testid=\"edit-portrait-{id}\"> is rendered INSIDE <button data-testid=\"character-card-{id}\">. React console error: 'In HTML, <button> cannot be a descendant of <button>. This will cause a hydration error.' Functionally works in Chromium, but is non-conformant HTML and may break keyboard navigation / SSR / Firefox. Refactor character-card to a <div role=\"button\"> wrapper, or move the edit pencil out of the card.", "selector": "[data-testid=\"character-card-chris\"] [data-testid=\"edit-portrait-chris\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Portrait override propagation to /daily", "issue": "DailyChallenge.jsx line 129 uses `src={activeChar.image}` instead of `src={resolveCharacterImage(activeChar)}`. Result: after saving a custom portrait, the /daily page still shows the original character image — directly contradicts the spec line 'After saving a custom portrait, navigating to other pages (e.g. /map, /play/1, /daily) shows the new portrait everywhere the character is rendered.' Verified empirically: with archie override set and character=archie, /play/1 shows 1 data:image URL but /daily shows 0.", "affected_selectors": ["[data-testid=\"daily-challenge-page\"] img"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "[HIGH] Refactor MainMenu character card to remove nested <button>. Either wrap the card in a <div role=button tabIndex=0 onClick=...> or move the edit-pencil button to absolutely-positioned sibling outside the card button. Eliminates the React hydration error.",
+    "[HIGH] In /app/frontend/src/pages/DailyChallenge.jsx, replace `src={activeChar.image}` with `src={resolveCharacterImage(activeChar)}` (and import the helper) so portrait override applies on /daily.",
+    "[LOW] In /app/backend/server.py /api/portrait/generate, sniff the returned image bytes and emit the matching MIME (image/png vs image/jpeg) in the data URL. Currently always emits 'data:image/png;base64,' but Gemini Nano Banana returns JPEG payload."
+  ],
+  "critical_code_review_comments": [
+    "server.py /api/leaderboard: correctly excludes _id, sorts by coins desc, joins on selected_character — shape matches spec. Default limit=10 applied. Verified with seeded TEST_ players.",
+    "server.py /api/portrait/generate: calls Gemini Nano Banana via emergentintegrations; ~10–15s latency typical. Returns 200 on success. Hardcoded image/png MIME is incorrect (see minor bug).",
+    "portraits.js: resolveCharacterImage prefers localStorage 'strayz_portrait_<id>' over character.image — used correctly by MainMenu, HotspotScene, CharacterCompanion, Leaderboard, PortraitEditor, GamePlay. Missing usage in DailyChallenge.jsx (see integration bug).",
+    "PortraitEditor.jsx: file size capped at 2.5MB before storage, preview updates immediately on upload, AI prompt triggers backend call, save persists to localStorage and calls earn('custom-portrait'). All flows verified.",
+    "achievements.js: 8 definitions present, earn() persists to 'strayz_achievements' as a JSON array; AchievementsDrawer reads it and shows UNLOCKED badge — verified True Identity transitions from locked → unlocked after portrait save.",
+    "Leaderboard.jsx: medals on top 3 verified (gold/silver/bronze backgrounds), uses resolveCharacterImage so overrides surface here too.",
+    "Hydration warning is the only blocking console error introduced this iteration; everything else (AudioContext autoplay) is pre-existing browser behaviour."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestLeaderboard with 2 tests + TestPortraitGen with 1 test)"
+  ],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "85% — 2 real defects (nested button + /daily override miss); all other flows pass"},
+  "test_credentials": "N/A — no auth in this app.",
+  "seed_data_creation": "Tests auto-seed TEST_lb_<uuid> players for leaderboard ordering check; cleanup via session fixture. No production data touched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend now exposes /api/portrait/generate (AI, slow ~10-15s, consumes LLM credits — call sparingly) and /api/leaderboard?limit=N. Total backend tests: 30, all passing. Frontend portrait override: localStorage key 'strayz_portrait_<id>' with data URL; resolveCharacterImage is consumed by MainMenu, Leaderboard, HotspotScene (/play/1), CharacterCompanion, PortraitEditor, GamePlay — but NOT yet by DailyChallenge.jsx (uses raw activeChar.image at line 129). MainMenu nests an edit-portrait button inside character-card button, generating a React hydration warning — fix by replacing outer button with div role=button. To test portrait upload without Playwright file I/O, set localStorage 'strayz_portrait_<id>' to a tiny data URL then reload; resolveCharacterImage picks it up. Achievement 'custom-portrait' is earned silently inside PortraitEditor on save; AchievementsDrawer's [data-testid=achievement-custom-portrait] element renders an 'UNLOCKED' span when the key 'custom-portrait' is in localStorage['strayz_achievements'].",
+  "rca of the issue": "Bug 1 (nested button): MainMenu.jsx wraps the entire character card in <button> and then adds another <button data-testid=edit-portrait-X> for the pencil — HTML spec forbids interactive descendants of <button>; React 18 surfaces this as a hydration error. Fix: change outer element to <div role='button' tabIndex=0 onClick=... onKeyDown=...>. Bug 2 (/daily not using override): DailyChallenge.jsx never imports resolveCharacterImage; line 129 hardcodes activeChar.image. Fix is a 2-line change — import then swap. Both reproducible deterministically by setting localStorage.strayz_portrait_archie=<data:image/png;base64,...> and localStorage.strayz_character=archie, then visiting /play/1 (override applies, expected) vs /daily (override does NOT apply, bug)."
+}

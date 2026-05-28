@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks } from "lucide-react";
+import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy } from "lucide-react";
 import TactileButton from "@/components/TactileButton";
 import ShopDrawer from "@/components/ShopDrawer";
 import GameNav from "@/components/GameNav";
 import Hero3D from "@/components/Hero3D";
+import PortraitEditor from "@/components/PortraitEditor";
+import AchievementsDrawer from "@/components/AchievementsDrawer";
 import { BACKGROUNDS, CHARACTERS } from "@/data/storyData";
+import { resolveCharacterImage } from "@/lib/portraits";
 import {
   getPlayerId,
   getCharacter,
@@ -40,6 +43,9 @@ export default function MainMenu() {
   const [char, setChar] = useState(getCharacter());
   const [diff, setDiff] = useState(getDifficulty());
   const [name, setName] = useState(getPlayerName());
+  const [editingId, setEditingId] = useState(null);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const pid = getPlayerId();
@@ -134,6 +140,34 @@ export default function MainMenu() {
             >
               Block Break
             </TactileButton>
+            <TactileButton
+              color="#22D3EE"
+              size="xl"
+              icon={CalendarCheck}
+              onClick={() => navigate("/daily")}
+              data-testid="open-daily-button"
+            >
+              Daily Challenge
+            </TactileButton>
+            <TactileButton
+              color="#FBBF24"
+              textColor="#1E293B"
+              size="xl"
+              icon={Trophy}
+              onClick={() => navigate("/leaderboard")}
+              data-testid="open-leaderboard-button"
+            >
+              Leaderboard
+            </TactileButton>
+            <TactileButton
+              color="#4ADE80"
+              size="xl"
+              icon={Award}
+              onClick={() => setAchievementsOpen(true)}
+              data-testid="open-achievements-button"
+            >
+              Achievements
+            </TactileButton>
           </div>
 
           {/* 3D Hero teaser */}
@@ -212,9 +246,10 @@ export default function MainMenu() {
                       style={{ backgroundColor: c.color + "40" }}
                     >
                       <img
-                        src={c.image}
+                        src={resolveCharacterImage(c)}
                         alt={c.name}
                         className="w-full h-full object-cover"
+                        key={refreshKey + c.id}
                       />
                       {c.family === "parent" && (
                         <span
@@ -224,6 +259,17 @@ export default function MainMenu() {
                           {c.gender === "female" ? "Mum" : "Dad"}
                         </span>
                       )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingId(c.id);
+                        }}
+                        className="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-white border-2 border-slate-800 flex items-center justify-center hover:bg-amber-100"
+                        data-testid={`edit-portrait-${c.id}`}
+                        aria-label={`Edit ${c.name}'s portrait`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-slate-800" strokeWidth={3} />
+                      </button>
                     </div>
                     <p className="mt-2 font-display font-bold text-base text-slate-900">
                       {c.name}{" "}
@@ -304,6 +350,18 @@ export default function MainMenu() {
         open={shopOpen}
         onOpenChange={setShopOpen}
         onPlayerUpdate={setPlayer}
+      />
+
+      <PortraitEditor
+        open={!!editingId}
+        characterId={editingId}
+        onOpenChange={(v) => !v && setEditingId(null)}
+        onSaved={() => setRefreshKey((k) => k + 1)}
+      />
+
+      <AchievementsDrawer
+        open={achievementsOpen}
+        onOpenChange={setAchievementsOpen}
       />
     </div>
   );

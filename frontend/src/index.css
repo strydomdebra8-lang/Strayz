@@ -150,6 +150,22 @@ h1, h2, h3, h4, h5, h6, .font-display {
     color: #1E3A8A;
 }
 
+/* --------- Accessibility --------- */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+.large-text {
+    font-size: 18px;
+}
+.large-text .text-xs { font-size: 0.85rem; }
+.large-text .text-sm { font-size: 1rem; }
+.large-text .text-base { font-size: 1.125rem; }
+
 @layer base {
     [data-debug-wrapper="true"] { display: contents !important; }
     [data-debug-wrapper="true"] > * {

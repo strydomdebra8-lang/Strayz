@@ -2,8 +2,11 @@
 const KEY = "strayz_player_id";
 const NAME_KEY = "strayz_player_name";
 const CHAR_KEY = "strayz_character";
+const PARTNER_KEY = "strayz_partner";
 const DIFF_KEY = "strayz_difficulty";
 const SOUND_KEY = "strayz_sound";
+const REDUCE_MOTION_KEY = "strayz_reduce_motion";
+const LARGE_TEXT_KEY = "strayz_large_text";
 
 export function getPlayerId() {
   let id = localStorage.getItem(KEY);
@@ -40,6 +43,36 @@ export function getSoundEnabled() {
 }
 export function setSoundEnabled(b) {
   localStorage.setItem(SOUND_KEY, b ? "on" : "off");
+}
+
+export function getPartner() {
+  return localStorage.getItem(PARTNER_KEY) || "";
+}
+export function setPartner(id) {
+  if (id) localStorage.setItem(PARTNER_KEY, id);
+  else localStorage.removeItem(PARTNER_KEY);
+}
+
+export function getReduceMotion() {
+  return localStorage.getItem(REDUCE_MOTION_KEY) === "on";
+}
+export function setReduceMotion(b) {
+  localStorage.setItem(REDUCE_MOTION_KEY, b ? "on" : "off");
+}
+
+export function getLargeText() {
+  return localStorage.getItem(LARGE_TEXT_KEY) === "on";
+}
+export function setLargeText(b) {
+  localStorage.setItem(LARGE_TEXT_KEY, b ? "on" : "off");
+}
+
+export function applyAccessibility() {
+  const root = document.documentElement;
+  if (getReduceMotion()) root.classList.add("reduce-motion");
+  else root.classList.remove("reduce-motion");
+  if (getLargeText()) root.classList.add("large-text");
+  else root.classList.remove("large-text");
 }
 
 export function resetGame() {

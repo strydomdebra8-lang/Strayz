@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Coins, Gem, Home, Store, Sparkles } from "lucide-react";
+import { Coins, Gem, Home, Store, Sparkles, Settings } from "lucide-react";
 import SoundToggle from "@/components/SoundToggle";
+import SettingsDrawer from "@/components/SettingsDrawer";
 
 export default function GameNav({ player, onOpenShop, hideHome = false, trackKey = "menu" }) {
   const navigate = useNavigate();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const coins = player?.coins ?? 0;
   const gems = player?.gems ?? 0;
 
@@ -41,6 +44,14 @@ export default function GameNav({ player, onOpenShop, hideHome = false, trackKey
           </span>
           <SoundToggle trackKey={trackKey} />
           <button
+            onClick={() => setSettingsOpen(true)}
+            className="tactile-btn bg-white text-slate-800 px-3 py-2 text-sm"
+            data-testid="nav-settings-button"
+            aria-label="Settings"
+          >
+            <Settings className="w-5 h-5" strokeWidth={3} />
+          </button>
+          <button
             onClick={onOpenShop}
             className="tactile-btn bg-pink-400 text-white px-3 py-2 text-sm"
             data-testid="nav-shop-button"
@@ -50,6 +61,7 @@ export default function GameNav({ player, onOpenShop, hideHome = false, trackKey
           </button>
         </div>
       </div>
+      <SettingsDrawer open={settingsOpen} onOpenChange={setSettingsOpen} />
     </nav>
   );
 }

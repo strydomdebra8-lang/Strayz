@@ -23,5 +23,7 @@ export const purchasePack = (payload) =>
   client.post("/shop/purchase", payload).then((r) => r.data);
 export const generateAiRiddle = (payload) =>
   client.post("/ai/riddle", payload).then((r) => r.data);
+export const getDailyChallenge = () =>
+  client.get("/daily-challenge").then((r) => r.data);
 
 export default client;

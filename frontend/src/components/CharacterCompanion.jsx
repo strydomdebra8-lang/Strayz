@@ -5,6 +5,7 @@ import {
   CHARACTER_SPECIALTY_LEVEL,
   getCharacterLine,
 } from "@/data/storyData";
+import { resolveCharacterImage } from "@/lib/portraits";
 
 const MOOD_RING = {
   idle: "ring-sky-300",
@@ -131,7 +132,7 @@ export default function CharacterCompanion({
                     style={{ backgroundColor: c.color + "40" }}
                   >
                     <img
-                      src={c.image}
+                      src={resolveCharacterImage(c)}
                       alt={c.name}
                       className="w-full h-full object-cover"
                     />
@@ -159,7 +160,7 @@ export default function CharacterCompanion({
           style={{ backgroundColor: character.color + "30" }}
         >
           <img
-            src={character.image}
+            src={resolveCharacterImage(character)}
             alt={character.name}
             className="w-full h-full object-cover"
           />

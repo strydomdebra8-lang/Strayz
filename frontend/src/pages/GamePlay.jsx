@@ -18,6 +18,8 @@ import PatternPuzzle from "@/components/PatternPuzzle";
 import CharacterCompanion from "@/components/CharacterCompanion";
 import HotspotScene from "@/components/HotspotScene";
 import { sfx, playMusic } from "@/lib/sound";
+import { resolveCharacterImage } from "@/lib/portraits";
+import { earn } from "@/lib/achievements";
 import {
   BACKGROUNDS,
   LEVEL_INTROS,
@@ -38,6 +40,7 @@ import {
   getDifficulty,
   getCharacter,
   setCharacter as saveCharacter,
+  getPartner,
 } from "@/lib/gameStore";
 
 export default function GamePlay() {
@@ -63,8 +66,11 @@ export default function GamePlay() {
   const [showScene, setShowScene] = useState(true);
   const [solvedIds, setSolvedIds] = useState(new Set());
   const difficulty = getDifficulty();
+  const partnerId = getPartner();
 
   const isSpecialty = CHARACTER_SPECIALTY_LEVEL[characterId] === levelNum;
+  const partnerIsSpecialty =
+    partnerId && CHARACTER_SPECIALTY_LEVEL[partnerId] === levelNum;
 
   const level = useMemo(
     () => levels.find((l) => l.id === levelNum),
@@ -109,6 +115,22 @@ export default function GamePlay() {
           ? `${bonusLabel} · Coach bonus +${flat}`
           : `Coach bonus +${flat} from ${characterId.charAt(0).toUpperCase() + characterId.slice(1)}!`;
       }
+      // Co-op partner bonuses stack
+      if (result.correct && partnerId) {
+        if (partnerIsSpecialty) {
+          bonusCoins += 10;
+          bonusLabel = bonusLabel
+            ? `${bonusLabel} · Partner ${partnerId} specialty +10`
+            : `Partner ${partnerId} specialty +10`;
+        }
+        const partnerFlat = CHARACTER_FLAT_BONUS[partnerId] || 0;
+        if (partnerFlat > 0) {
+          bonusCoins += partnerFlat;
+          bonusLabel = bonusLabel
+            ? `${bonusLabel} · Partner ${partnerId} coach +${partnerFlat}`
+            : `Partner ${partnerId} coach +${partnerFlat}`;
+        }
+      }
       const totalAwarded = result.coins_earned + bonusCoins;
       const enriched = { ...result, coins_earned: totalAwarded };
 
@@ -116,6 +138,7 @@ export default function GamePlay() {
       if (result.correct) {
         sfx.correct();
         sfx.coin();
+        earn("first-win");
         setSolvedIds((prev) => new Set(prev).add(current.id));
         setScore((s) => s + 1);
         setCompanionMood("happy");
@@ -238,6 +261,13 @@ export default function GamePlay() {
     }
     toast.success(`Level ${levelNum} complete! ${"⭐".repeat(stars)}`);
     sfx.levelUp();
+    if (levelNum === 1) earn("level-1-clear");
+    if (levelNum === 6) earn("level-6-clear");
+    const completed = [...(player?.levels_completed || []), levelNum];
+    if ([1, 2, 3, 4, 5, 6].every((l) => completed.includes(l))) {
+      earn("all-levels");
+    }
+    if ((player?.coins || 0) + earned >= 500) earn("coin-collector");
   };
 
   // Save coins per correct answer to backend

@@ -74,7 +74,11 @@ export default function EndlessMode() {
       if (r.correct) {
         sfx.correct();
         sfx.coin();
-        setStreak((s) => s + 1);
+        setStreak((s) => {
+          const ns = s + 1;
+          if (ns >= 5) earn("endless-streak-5");
+          return ns;
+        });
         setCompanionMood("happy");
         setCompanionSpeech(getCharacterLine(characterId, "onCorrect"));
         toast.success(`Correct! +${r.coins_earned} coins`);

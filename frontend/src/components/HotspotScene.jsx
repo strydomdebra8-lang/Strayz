@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import * as Lucide from "lucide-react";
 import { LEVEL_HOTSPOTS } from "@/data/hotspots";
 import { CHARACTERS } from "@/data/storyData";
+import { resolveCharacterImage } from "@/lib/portraits";
 import { sfx } from "@/lib/sound";
 
 export default function HotspotScene({
@@ -43,7 +44,7 @@ export default function HotspotScene({
       >
         <div className="w-full h-full rounded-full border-4 border-slate-800 overflow-hidden bg-white tactile-shadow-sm animate-walk-bob">
           <img
-            src={character.image}
+            src={resolveCharacterImage(character)}
             alt={character.name}
             className="w-full h-full object-cover"
           />

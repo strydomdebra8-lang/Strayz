@@ -78,6 +78,11 @@ class AIRiddleRequest(BaseModel):
     difficulty: str = "medium"
 
 
+class PortraitGenRequest(BaseModel):
+    character_id: str
+    description: str
+
+
 # In-memory cache of all puzzles, generated with stable IDs
 _PUZZLE_CACHE: List[dict] = []
 
@@ -473,6 +478,123 @@ async def generate_ai_riddle(payload: AIRiddleRequest):
     except Exception as e:
         logging.exception("AI riddle generation failed")
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
+
+
+# ------------------- AI Portrait Generator -------------------
+@api_router.post("/portrait/generate")
+async def generate_portrait(payload: PortraitGenRequest):
+    """Generate a custom character portrait using Gemini Nano Banana."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="LLM key not configured")
+
+    try:
+        import base64
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+        style_suffix = (
+            " Hand-drawn cartoon adventure game portrait, square framing, "
+            "Pixar-meets-comic-book style, bold outlines, cel-shaded, vibrant "
+            "colors, expressive eyes, soft warm lighting, plain pastel "
+            "background. Centered headshot, no text or watermarks."
+        )
+
+        full_prompt = (payload.description or "A cheerful adventurer") + style_suffix
+
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"strayz-portrait-{payload.character_id}-{uuid.uuid4()}",
+            system_message=(
+                "You are an expert family-friendly character illustrator. Output ONE "
+                "centered cartoon portrait. Do not include text in the image."
+            ),
+        )
+        chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(
+            modalities=["image", "text"]
+        )
+
+        _text, images = await chat.send_message_multimodal_response(
+            UserMessage(text=full_prompt)
+        )
+        if not images:
+            raise HTTPException(status_code=500, detail="No image returned")
+        img = images[0]
+        data_url = f"data:image/png;base64,{img['data']}"
+        return {"image": data_url, "character_id": payload.character_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Portrait generation failed")
+        raise HTTPException(
+            status_code=500, detail=f"Portrait generation failed: {str(e)}"
+        )
+
+
+# ------------------- Leaderboard -------------------
+@api_router.get("/leaderboard")
+async def get_leaderboard(limit: int = 10):
+    """Top players by coins (desc)."""
+    cursor = db.players.find({}, {"_id": 0}).sort("coins", -1).limit(limit)
+    docs = await cursor.to_list(length=limit)
+    rows = []
+    for d in docs:
+        stars = sum((d.get("level_stars") or {}).values())
+        rows.append(
+            {
+                "player_id": d.get("player_id", ""),
+                "name": d.get("name", "Adventurer"),
+                "coins": d.get("coins", 0),
+                "stars": stars,
+                "levels_completed": len(d.get("levels_completed") or []),
+                "selected_character": d.get("selected_character", "chris"),
+            }
+        )
+    return {"rows": rows}
+
+
+import hashlib
+
+
+def _seed_for_today(date_str: str, key: str) -> int:
+    h = hashlib.sha256(f"{date_str}::{key}".encode()).hexdigest()
+    return int(h[:8], 16)
+
+
+@api_router.get("/daily-challenge")
+async def get_daily_challenge():
+    """One puzzle per character specialty, deterministic for today's date."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    specialty_categories = {
+        "chris": ["math", "logic"],
+        "archie": ["music"],
+        "lynn": ["history", "geography"],
+        "deb": ["science", "nature"],
+        "dolly": ["history", "geography", "music", "logic"],
+        "arthur": ["sports"],
+    }
+    picks = []
+    for char_id, cats in specialty_categories.items():
+        candidates = [
+            p
+            for p in _PUZZLE_CACHE
+            if p.get("category") in cats and p.get("type") != "pattern"
+        ]
+        if not candidates:
+            continue
+        idx = _seed_for_today(today, char_id) % len(candidates)
+        p = candidates[idx]
+        picks.append(
+            {
+                "character_id": char_id,
+                "puzzle": {
+                    "id": p["id"],
+                    "type": p["type"],
+                    "category": p["category"],
+                    "question": p["question"],
+                    "options": p.get("options"),
+                },
+            }
+        )
+    return {"date": today, "challenges": picks}
 
 
 # ------------------- Wire-up -------------------

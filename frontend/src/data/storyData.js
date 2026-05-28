@@ -7,8 +7,7 @@ export const CHARACTERS = [
     role: "The Curious Whiz",
     specialty: "Math & Logic",
     color: "#4ADE80",
-    image:
-      "https://api.dicebear.com/7.x/lorelei/svg?seed=ChrisBoy10&backgroundColor=4ADE80&radius=20",
+    image: "/portraits/chris.png",
     bio: "The youngest Stray. A boy genius with numbers who never stops asking 'why?'",
     family: "kid",
   },
@@ -20,8 +19,7 @@ export const CHARACTERS = [
     role: "The Music Maven",
     specialty: "Music & Arts",
     color: "#FB923C",
-    image:
-      "https://api.dicebear.com/7.x/lorelei/svg?seed=ArchieTeenBoy16&backgroundColor=FB923C&radius=20",
+    image: "/portraits/archie.png",
     bio: "Teen lad with perfect pitch and an encyclopedic knowledge of music.",
     family: "teen",
   },
@@ -33,8 +31,7 @@ export const CHARACTERS = [
     role: "The Explorer",
     specialty: "History & Geography",
     color: "#38BDF8",
-    image:
-      "https://api.dicebear.com/7.x/lorelei/svg?seed=LynnWomanExplorer&backgroundColor=38BDF8&radius=20",
+    image: "/portraits/lynn.png",
     bio: "Young woman backpacker who has trekked every continent. Reads ancient maps like comics.",
     family: "young-adult",
   },
@@ -46,8 +43,7 @@ export const CHARACTERS = [
     role: "The Scientist",
     specialty: "Science & Nature",
     color: "#A78BFA",
-    image:
-      "https://api.dicebear.com/7.x/lorelei/svg?seed=DebWomanScientist&backgroundColor=A78BFA&radius=20",
+    image: "/portraits/deb.png",
     bio: "Eldest sibling. Lab whizz with a thermos of coffee and a microscope.",
     family: "young-adult",
   },
@@ -59,8 +55,7 @@ export const CHARACTERS = [
     role: "The Quizmaster Mum",
     specialty: "General Knowledge & Home",
     color: "#F472B6",
-    image:
-      "https://api.dicebear.com/7.x/lorelei/svg?seed=DollyMotherMum&backgroundColor=F472B6&radius=20",
+    image: "/portraits/dolly.png",
     bio: "Mum of the crew. A walking trivia encyclopedia who runs the cosy family base camp.",
     family: "parent",
   },
@@ -72,8 +67,7 @@ export const CHARACTERS = [
     role: "The Sports Coach Dad",
     specialty: "Sports & Endurance",
     color: "#22D3EE",
-    image:
-      "https://api.dicebear.com/7.x/lorelei/svg?seed=ArthurFatherCoach&backgroundColor=22D3EE&radius=20",
+    image: "/portraits/arthur.png",
     bio: "Dad of the crew. Ex-athlete and sports nerd who cheers louder than anyone — leads the Sports Arena and gives the team a flat bonus on every correct answer.",
     family: "parent",
   },
