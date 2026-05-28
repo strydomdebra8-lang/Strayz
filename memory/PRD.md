@@ -129,6 +129,21 @@ A point and click game that includes brain teasers, puzzles and riddles as well 
 - ✅ Backend endpoint: GET /api/share-card/{player_id}
 - ✅ 55/55 backend pytest tests pass; 100% frontend Share flows verified
 
+## Iteration 9 Update (2026-02-28) — Friend Codes + Daily Duel (Multiplayer Hook)
+- ✅ Each player auto-generates a unique friend code: STRY-XXXX (4 random A-Z0-9)
+- ✅ `/friends` page: copy-my-code, add-by-code, friend list with stats, remove
+- ✅ Daily Duel leaderboard: me + my friends sorted by today's daily-challenge score
+- ✅ DailyChallenge auto-submits score to duel on completion
+- ✅ Best-score logic — submitting a lower score after a high one does NOT overwrite
+- ✅ 2 new achievements (Buddy System, Crew of Three)
+- ✅ Indigo "Friends" CTA on MainMenu (11 total CTAs)
+- ✅ Backend endpoints: GET /api/friend-code/{id}, /friend/lookup/{code}, /friends/{id}, /duel/scores/{id}; POST /friend/add, /duel/submit; DELETE /friend/{me}/{friend}
+- ✅ 64/65 backend tests pass (10/10 new Friend+Duel tests, 1 unrelated infra failure on portrait LLM budget)
+- ✅ 100% frontend flows verified including duplicate-add, self-add, invalid-code, remove
+
+## Known Limitation
+- /api/portrait/generate may return 500 when Emergent LLM budget is exhausted. To top up: Profile → Universal Key → Add Balance. Not a code defect.
+
 ## 🚀 LAUNCH READY (2026-02-28)
 The game now has all 6 inspirational pillars from the original prompt:
 - Carmen Sandiego (point-and-click locations) ✓
