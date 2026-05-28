@@ -303,6 +303,237 @@ class TestPortraitGen:
         assert len(raw) > 1000, "Image payload suspiciously small"
 
 
+# -------- Login Streak (regression: LoginClaimRequest missing) --------
+class TestLoginStreak:
+    def test_get_streak_initial(self, session):
+        pid = f"TEST_streak_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/login-streak/{pid}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["can_claim"] is True
+        assert d["streak"] == 0
+        assert d["reward"] >= 10
+
+    def test_claim_streak(self, session):
+        pid = f"TEST_streak_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/login-streak/{pid}")
+        r = session.post(f"{API}/login-streak/claim", json={"player_id": pid})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["already_claimed"] is False
+        assert d["streak"] == 1
+        assert d["reward"] == 10
+
+        # second claim same day: already_claimed
+        r2 = session.post(f"{API}/login-streak/claim", json={"player_id": pid})
+        assert r2.status_code == 200
+        assert r2.json()["already_claimed"] is True
+
+
+# -------- Homestead (Hay Day / CoC mini-loop) --------
+class TestHomestead:
+    def test_list_crops(self, session):
+        r = session.get(f"{API}/homestead/crops")
+        assert r.status_code == 200, r.text
+        crops = r.json()["crops"]
+        assert len(crops) == 5
+        ids = {c["id"] for c in crops}
+        assert ids == {"wheat", "carrot", "berry", "pumpkin", "star"}
+        wheat = next(c for c in crops if c["id"] == "wheat")
+        assert wheat["cost"] == 5 and wheat["reward"] == 12 and wheat["duration"] == 30 and wheat["xp"] == 1
+        star = next(c for c in crops if c["id"] == "star")
+        assert star.get("unlock_level") == 7
+
+    def test_get_homestead_defaults(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        r = session.get(f"{API}/homestead/{pid}")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        h = d["homestead"]
+        assert h["unlocked"] == 4
+        assert h["max_plots"] == 9
+        assert h["level"] == 1
+        assert h["xp"] == 0
+        assert len(h["plots"]) == 9
+        assert d["coins"] == 100 and d["gems"] == 5
+        assert len(d["crops"]) == 5
+        # Plot 0..3 unlocked, 4..8 locked with expand costs
+        assert all(p["unlocked"] for p in h["plots"][:4])
+        assert all(not p["unlocked"] for p in h["plots"][4:])
+        assert h["plots"][4]["expand_cost"] == 200
+        assert h["plots"][8]["expand_cost"] == 5000
+
+    def test_plant_locked_plot(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        r = session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 5, "crop_id": "wheat"
+        })
+        assert r.status_code == 400
+        assert "unlock" in r.json()["detail"].lower()
+
+    def test_plant_unknown_crop(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        r = session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "banana"
+        })
+        assert r.status_code == 404
+
+    def test_plant_locked_crop_by_level(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        # level 1, try carrot (Lv2) - should fail
+        r = session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "carrot"
+        })
+        assert r.status_code == 400, r.text
+        assert "level" in r.json()["detail"].lower()
+
+    def test_plant_and_harvest_not_ready(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        before = session.get(f"{API}/homestead/{pid}").json()
+        before_coins = before["coins"]
+        r = session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "wheat"
+        })
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["coins"] == before_coins - 5
+        plot = d["homestead"]["plots"][0]
+        assert plot["crop"] == "wheat"
+        assert plot["remaining"] is not None and plot["remaining"] > 0
+        # Can't harvest yet
+        h = session.post(f"{API}/homestead/harvest", json={
+            "player_id": pid, "plot_index": 0
+        })
+        assert h.status_code == 400
+        assert "ready" in h.json()["detail"].lower()
+
+    def test_plant_already_planted(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "wheat"
+        })
+        r = session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "wheat"
+        })
+        assert r.status_code == 400
+        assert "already" in r.json()["detail"].lower()
+
+    def test_boost_and_harvest_flow(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        before = session.get(f"{API}/homestead/{pid}").json()
+        # plant wheat
+        session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 1, "crop_id": "wheat"
+        })
+        # boost
+        b = session.post(f"{API}/homestead/boost", json={
+            "player_id": pid, "plot_index": 1
+        })
+        assert b.status_code == 200, b.text
+        bj = b.json()
+        assert bj["gems"] == before["gems"] - 1
+        plot = bj["homestead"]["plots"][1]
+        assert plot["remaining"] == 0
+        # harvest
+        h = session.post(f"{API}/homestead/harvest", json={
+            "player_id": pid, "plot_index": 1
+        })
+        assert h.status_code == 200, h.text
+        hj = h.json()
+        assert hj["reward"] == 12
+        assert hj["xp_gained"] == 1
+        assert hj["coins"] == before["coins"] - 5 + 12
+        assert hj["homestead"]["xp"] == 1
+        # Plot cleared
+        assert hj["homestead"]["plots"][1]["crop"] is None
+
+    def test_boost_no_crop(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        r = session.post(f"{API}/homestead/boost", json={
+            "player_id": pid, "plot_index": 0
+        })
+        assert r.status_code == 400
+        assert "nothing" in r.json()["detail"].lower()
+
+    def test_boost_insufficient_gems(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        # drain gems to 0 by overwriting via /player POST
+        session.get(f"{API}/homestead/{pid}")
+        # plant
+        session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "wheat"
+        })
+        # spend all gems via boost (5 plants would need 5 plots; just zero gems via player POST)
+        session.post(f"{API}/player", json={"player_id": pid, "gems": 0, "coins": 100})
+        r = session.post(f"{API}/homestead/boost", json={
+            "player_id": pid, "plot_index": 0
+        })
+        assert r.status_code == 400
+        assert "gems" in r.json()["detail"].lower()
+
+    def test_plant_insufficient_coins(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        # zero coins
+        session.post(f"{API}/player", json={"player_id": pid, "coins": 0, "gems": 5})
+        r = session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "wheat"
+        })
+        assert r.status_code == 400
+        assert "coins" in r.json()["detail"].lower()
+
+    def test_expand_not_enough_coins(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        # default 100 coins, cost to unlock 5th plot is 200
+        r = session.post(f"{API}/homestead/expand", json={"player_id": pid})
+        assert r.status_code == 400
+        assert "coins" in r.json()["detail"].lower()
+
+    def test_expand_success(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        # give coins
+        session.post(f"{API}/player", json={"player_id": pid, "coins": 1000, "gems": 5})
+        r = session.post(f"{API}/homestead/expand", json={"player_id": pid})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["homestead"]["unlocked"] == 5
+        assert d["coins"] == 1000 - 200  # next cost is for plot index 4 -> 200
+        # next expand_cost should be 500
+        assert d["homestead"]["next_expand_cost"] == 500
+
+    def test_level_up_unlocks_crop(self, session):
+        pid = f"TEST_home_{uuid.uuid4().hex[:6]}"
+        session.get(f"{API}/homestead/{pid}")
+        # Plant + boost + harvest wheat 10 times -> 10 XP -> level 2, can plant carrot
+        # Give enough coins
+        session.post(f"{API}/player", json={"player_id": pid, "coins": 1000, "gems": 50})
+        for _ in range(10):
+            session.post(f"{API}/homestead/plant", json={
+                "player_id": pid, "plot_index": 0, "crop_id": "wheat"
+            })
+            session.post(f"{API}/homestead/boost", json={
+                "player_id": pid, "plot_index": 0
+            })
+            session.post(f"{API}/homestead/harvest", json={
+                "player_id": pid, "plot_index": 0
+            })
+        state = session.get(f"{API}/homestead/{pid}").json()
+        assert state["homestead"]["xp"] >= 10
+        assert state["homestead"]["level"] >= 2
+        # now plant carrot
+        r = session.post(f"{API}/homestead/plant", json={
+            "player_id": pid, "plot_index": 0, "crop_id": "carrot"
+        })
+        assert r.status_code == 200, r.text
+
+
 # -------- Cleanup --------
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup(player_id):

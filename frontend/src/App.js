@@ -10,6 +10,7 @@ import StoryIntro from "@/pages/StoryIntro";
 import TetrisPage from "@/pages/TetrisPage";
 import DailyChallenge from "@/pages/DailyChallenge";
 import Leaderboard from "@/pages/Leaderboard";
+import Homestead from "@/pages/Homestead";
 import { applyAccessibility } from "@/lib/gameStore";
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
           <Route path="/tetris" element={<TetrisPage />} />
           <Route path="/daily" element={<DailyChallenge />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/homestead" element={<Homestead />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-center" richColors closeButton />

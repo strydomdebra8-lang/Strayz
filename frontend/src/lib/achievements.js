@@ -58,6 +58,27 @@ export const ACHIEVEMENTS = [
     icon: "Image",
     color: "#38BDF8",
   },
+  {
+    id: "first-harvest",
+    name: "Green Thumb",
+    desc: "Harvest your first crop at the Homestead.",
+    icon: "Sprout",
+    color: "#4ADE80",
+  },
+  {
+    id: "homestead-expanded",
+    name: "Land Baron",
+    desc: "Expand the Homestead with extra plots.",
+    icon: "Home",
+    color: "#FB923C",
+  },
+  {
+    id: "homestead-level-3",
+    name: "Master Farmer",
+    desc: "Reach Homestead level 3.",
+    icon: "Award",
+    color: "#A78BFA",
+  },
 ];
 
 export function getEarned() {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy } from "lucide-react";
+import { Play, BookOpenText, Sparkles, Map, Settings, Brain, Blocks, CalendarCheck, Edit3, Award, Trophy, Sprout } from "lucide-react";
 import TactileButton from "@/components/TactileButton";
 import ShopDrawer from "@/components/ShopDrawer";
 import GameNav from "@/components/GameNav";
@@ -148,6 +148,15 @@ export default function MainMenu() {
               data-testid="open-daily-button"
             >
               Daily Challenge
+            </TactileButton>
+            <TactileButton
+              color="#84CC16"
+              size="xl"
+              icon={Sprout}
+              onClick={() => navigate("/homestead")}
+              data-testid="open-homestead-button"
+            >
+              Homestead
             </TactileButton>
             <TactileButton
               color="#FBBF24"

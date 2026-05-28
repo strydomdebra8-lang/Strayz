@@ -83,6 +83,30 @@ class PortraitGenRequest(BaseModel):
     description: str
 
 
+class LoginClaimRequest(BaseModel):
+    player_id: str
+
+
+class HomesteadPlantRequest(BaseModel):
+    player_id: str
+    plot_index: int
+    crop_id: str
+
+
+class HomesteadHarvestRequest(BaseModel):
+    player_id: str
+    plot_index: int
+
+
+class HomesteadExpandRequest(BaseModel):
+    player_id: str
+
+
+class HomesteadBoostRequest(BaseModel):
+    player_id: str
+    plot_index: int
+
+
 # In-memory cache of all puzzles, generated with stable IDs
 _PUZZLE_CACHE: List[dict] = []
 
@@ -673,6 +697,261 @@ async def claim_login_streak(payload: LoginClaimRequest):
         upsert=True,
     )
     return {"streak": streak, "reward": reward, "player": player, "already_claimed": False}
+
+
+# ------------------- Strayz Homestead (Hay Day / CoC style mini-loop) -------------------
+CROPS = {
+    "wheat": {
+        "id": "wheat",
+        "name": "Sun Wheat",
+        "emoji": "🌾",
+        "cost": 5,
+        "reward": 12,
+        "xp": 1,
+        "duration": 30,  # seconds
+        "color": "#FBBF24",
+    },
+    "carrot": {
+        "id": "carrot",
+        "name": "Crunchy Carrots",
+        "emoji": "🥕",
+        "cost": 20,
+        "reward": 55,
+        "xp": 3,
+        "duration": 120,
+        "color": "#FB923C",
+        "unlock_level": 2,
+    },
+    "berry": {
+        "id": "berry",
+        "name": "Sky Berries",
+        "emoji": "🫐",
+        "cost": 45,
+        "reward": 130,
+        "xp": 6,
+        "duration": 300,
+        "color": "#A78BFA",
+        "unlock_level": 3,
+    },
+    "pumpkin": {
+        "id": "pumpkin",
+        "name": "Royal Pumpkin",
+        "emoji": "🎃",
+        "cost": 100,
+        "reward": 320,
+        "xp": 14,
+        "duration": 900,
+        "color": "#F472B6",
+        "unlock_level": 5,
+    },
+    "star": {
+        "id": "star",
+        "name": "Starfruit",
+        "emoji": "⭐",
+        "cost": 250,
+        "reward": 900,
+        "xp": 35,
+        "duration": 1800,
+        "color": "#38BDF8",
+        "unlock_level": 7,
+    },
+}
+
+EXPAND_COSTS = [0, 0, 0, 0, 200, 500, 1200, 2500, 5000]  # cost to unlock plot N (0..8)
+HOMESTEAD_MAX_PLOTS = 9
+HOMESTEAD_STARTER_PLOTS = 4
+BOOST_GEM_COST = 1  # gems to instantly finish a crop
+
+
+def _default_homestead():
+    return {
+        "unlocked": HOMESTEAD_STARTER_PLOTS,
+        "level": 1,
+        "xp": 0,
+        "plots": [{"crop": None, "planted_at": None} for _ in range(HOMESTEAD_MAX_PLOTS)],
+    }
+
+
+def _level_from_xp(xp: int) -> int:
+    # 10 xp = lvl 2, 25 = 3, 50 = 4, 100 = 5, 200 = 6, 350 = 7, 550 = 8
+    thresholds = [0, 10, 25, 50, 100, 200, 350, 550, 800]
+    lvl = 1
+    for t in thresholds:
+        if xp >= t:
+            lvl = thresholds.index(t) + 1
+    return lvl
+
+
+def _crop_remaining(plot, now_ts):
+    if not plot.get("crop") or not plot.get("planted_at"):
+        return None
+    crop = CROPS.get(plot["crop"])
+    if not crop:
+        return 0
+    elapsed = now_ts - plot["planted_at"]
+    return max(0, int(crop["duration"] - elapsed))
+
+
+def _serialize_homestead(home):
+    now_ts = datetime.now(timezone.utc).timestamp()
+    plots = []
+    for i in range(HOMESTEAD_MAX_PLOTS):
+        plot = home["plots"][i] if i < len(home["plots"]) else {"crop": None, "planted_at": None}
+        unlocked = i < home["unlocked"]
+        plots.append(
+            {
+                "index": i,
+                "unlocked": unlocked,
+                "crop": plot.get("crop"),
+                "planted_at": plot.get("planted_at"),
+                "remaining": _crop_remaining(plot, now_ts),
+                "expand_cost": EXPAND_COSTS[i] if not unlocked else 0,
+            }
+        )
+    return {
+        "unlocked": home["unlocked"],
+        "max_plots": HOMESTEAD_MAX_PLOTS,
+        "level": _level_from_xp(home.get("xp", 0)),
+        "xp": home.get("xp", 0),
+        "plots": plots,
+        "next_expand_cost": EXPAND_COSTS[home["unlocked"]] if home["unlocked"] < HOMESTEAD_MAX_PLOTS else 0,
+    }
+
+
+async def _load_homestead(player_id: str):
+    player = await db.players.find_one({"player_id": player_id}, {"_id": 0})
+    if not player:
+        player = PlayerProgress(player_id=player_id).model_dump()
+        await db.players.insert_one(player)
+    home = player.get("homestead") or _default_homestead()
+    # ensure full length plots array
+    while len(home["plots"]) < HOMESTEAD_MAX_PLOTS:
+        home["plots"].append({"crop": None, "planted_at": None})
+    return player, home
+
+
+async def _save_homestead(player_id: str, player: dict, home: dict):
+    home["level"] = _level_from_xp(home.get("xp", 0))
+    player["homestead"] = home
+    await db.players.update_one(
+        {"player_id": player_id},
+        {"$set": player},
+        upsert=True,
+    )
+
+
+@api_router.get("/homestead/crops")
+async def list_crops():
+    return {"crops": list(CROPS.values())}
+
+
+@api_router.get("/homestead/{player_id}")
+async def get_homestead(player_id: str):
+    player, home = await _load_homestead(player_id)
+    return {
+        "homestead": _serialize_homestead(home),
+        "coins": player.get("coins", 0),
+        "gems": player.get("gems", 0),
+        "crops": list(CROPS.values()),
+    }
+
+
+@api_router.post("/homestead/plant")
+async def plant_crop(payload: HomesteadPlantRequest):
+    player, home = await _load_homestead(payload.player_id)
+    if payload.plot_index < 0 or payload.plot_index >= home["unlocked"]:
+        raise HTTPException(status_code=400, detail="Plot not unlocked")
+    crop = CROPS.get(payload.crop_id)
+    if not crop:
+        raise HTTPException(status_code=404, detail="Unknown crop")
+    home_level = _level_from_xp(home.get("xp", 0))
+    if crop.get("unlock_level", 1) > home_level:
+        raise HTTPException(status_code=400, detail=f"Reach homestead level {crop['unlock_level']} to plant {crop['name']}")
+    if player.get("coins", 0) < crop["cost"]:
+        raise HTTPException(status_code=400, detail="Not enough coins")
+    plot = home["plots"][payload.plot_index]
+    if plot.get("crop"):
+        raise HTTPException(status_code=400, detail="Plot already planted")
+    plot["crop"] = crop["id"]
+    plot["planted_at"] = datetime.now(timezone.utc).timestamp()
+    player["coins"] = player.get("coins", 0) - crop["cost"]
+    await _save_homestead(payload.player_id, player, home)
+    return {
+        "homestead": _serialize_homestead(home),
+        "coins": player["coins"],
+        "gems": player.get("gems", 0),
+    }
+
+
+@api_router.post("/homestead/harvest")
+async def harvest_crop(payload: HomesteadHarvestRequest):
+    player, home = await _load_homestead(payload.player_id)
+    if payload.plot_index < 0 or payload.plot_index >= home["unlocked"]:
+        raise HTTPException(status_code=400, detail="Plot not unlocked")
+    plot = home["plots"][payload.plot_index]
+    if not plot.get("crop"):
+        raise HTTPException(status_code=400, detail="Nothing to harvest")
+    crop = CROPS.get(plot["crop"])
+    if not crop:
+        raise HTTPException(status_code=400, detail="Unknown crop")
+    now_ts = datetime.now(timezone.utc).timestamp()
+    if now_ts - plot["planted_at"] < crop["duration"]:
+        raise HTTPException(status_code=400, detail="Crop not ready")
+    player["coins"] = player.get("coins", 0) + crop["reward"]
+    home["xp"] = home.get("xp", 0) + crop["xp"]
+    plot["crop"] = None
+    plot["planted_at"] = None
+    await _save_homestead(payload.player_id, player, home)
+    return {
+        "homestead": _serialize_homestead(home),
+        "coins": player["coins"],
+        "gems": player.get("gems", 0),
+        "reward": crop["reward"],
+        "xp_gained": crop["xp"],
+    }
+
+
+@api_router.post("/homestead/boost")
+async def boost_crop(payload: HomesteadBoostRequest):
+    """Spend gems to instantly finish a growing crop."""
+    player, home = await _load_homestead(payload.player_id)
+    if payload.plot_index < 0 or payload.plot_index >= home["unlocked"]:
+        raise HTTPException(status_code=400, detail="Plot not unlocked")
+    plot = home["plots"][payload.plot_index]
+    if not plot.get("crop"):
+        raise HTTPException(status_code=400, detail="Nothing to boost")
+    if player.get("gems", 0) < BOOST_GEM_COST:
+        raise HTTPException(status_code=400, detail="Not enough gems")
+    crop = CROPS.get(plot["crop"])
+    if not crop:
+        raise HTTPException(status_code=400, detail="Unknown crop")
+    # Set planted_at far enough back so crop is ready
+    plot["planted_at"] = datetime.now(timezone.utc).timestamp() - crop["duration"]
+    player["gems"] = player.get("gems", 0) - BOOST_GEM_COST
+    await _save_homestead(payload.player_id, player, home)
+    return {
+        "homestead": _serialize_homestead(home),
+        "coins": player.get("coins", 0),
+        "gems": player["gems"],
+    }
+
+
+@api_router.post("/homestead/expand")
+async def expand_homestead(payload: HomesteadExpandRequest):
+    player, home = await _load_homestead(payload.player_id)
+    if home["unlocked"] >= HOMESTEAD_MAX_PLOTS:
+        raise HTTPException(status_code=400, detail="Homestead fully expanded")
+    cost = EXPAND_COSTS[home["unlocked"]]
+    if player.get("coins", 0) < cost:
+        raise HTTPException(status_code=400, detail="Not enough coins")
+    player["coins"] = player.get("coins", 0) - cost
+    home["unlocked"] += 1
+    await _save_homestead(payload.player_id, player, home)
+    return {
+        "homestead": _serialize_homestead(home),
+        "coins": player["coins"],
+        "gems": player.get("gems", 0),
+    }
 
 
 # ------------------- Wire-up -------------------

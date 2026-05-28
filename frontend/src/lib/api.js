@@ -26,4 +26,15 @@ export const generateAiRiddle = (payload) =>
 export const getDailyChallenge = () =>
   client.get("/daily-challenge").then((r) => r.data);
 
+export const getHomestead = (playerId) =>
+  client.get(`/homestead/${playerId}`).then((r) => r.data);
+export const plantCrop = (payload) =>
+  client.post("/homestead/plant", payload).then((r) => r.data);
+export const harvestCrop = (payload) =>
+  client.post("/homestead/harvest", payload).then((r) => r.data);
+export const boostCrop = (payload) =>
+  client.post("/homestead/boost", payload).then((r) => r.data);
+export const expandHomestead = (payload) =>
+  client.post("/homestead/expand", payload).then((r) => r.data);
+
 export default client;
