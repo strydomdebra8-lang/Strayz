@@ -119,6 +119,16 @@ A point and click game that includes brain teasers, puzzles and riddles as well 
 - ✅ Backend endpoints: GET /api/defense/{player_id}, /defense/raid/start, POST /defense/upgrade, /defense/raid/resolve
 - ✅ 52/52 backend pytest tests pass; 100% frontend Defense flows verified
 
+## Iteration 8 Update (2026-02-28) — Viral Share Card
+- ✅ Shareable stat card at `/share` — gradient design, character portrait, dynamic tagline (Rising Stray → World Liberator)
+- ✅ 6-stat snapshot: Coins, Gems, Stars, Levels, Farm Lv, Raids
+- ✅ Download as PNG (via html2canvas, scale 2× retina-quality)
+- ✅ Copy tweet text to clipboard with emoji-formatted stats + URL
+- ✅ Native Web Share API with graceful copy-text fallback
+- ✅ Pink "Share Card" CTA on MainMenu (10 total CTAs now)
+- ✅ Backend endpoint: GET /api/share-card/{player_id}
+- ✅ 55/55 backend pytest tests pass; 100% frontend Share flows verified
+
 ## 🚀 LAUNCH READY (2026-02-28)
 The game now has all 6 inspirational pillars from the original prompt:
 - Carmen Sandiego (point-and-click locations) ✓
