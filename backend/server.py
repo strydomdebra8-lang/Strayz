@@ -1569,9 +1569,9 @@ def _serialize_expedition(player: dict):
     today = _today_key()
     completed_today = today in exp["completed_days"]
     next_tier = None
-    for i, t in enumerate(TIER_LADDER):
-        if exp["xp"] < t["xp"]:
-            next_tier = {"index": i, "xp_needed": t["xp"], "label": t["label"]}
+    for idx, tier in enumerate(TIER_LADDER):
+        if exp["xp"] < tier["xp"]:
+            next_tier = {"index": idx, "xp_needed": tier["xp"], "label": tier["label"]}
             break
     return {
         "season_key": exp["season_key"],
@@ -1582,11 +1582,11 @@ def _serialize_expedition(player: dict):
         "puzzles_per_run": EXPEDITION_PUZZLES_PER_RUN,
         "tiers": [
             {
-                **t,
-                "claimed": i in exp["claimed_tiers"],
-                "available": exp["xp"] >= t["xp"] and i not in exp["claimed_tiers"],
+                **tier,
+                "claimed": idx in exp["claimed_tiers"],
+                "available": exp["xp"] >= tier["xp"] and idx not in exp["claimed_tiers"],
             }
-            for i, t in enumerate(TIER_LADDER)
+            for idx, tier in enumerate(TIER_LADDER)
         ],
         "next_tier": next_tier,
         "unlocked_frames": player.get("unlocked_frames") or [],

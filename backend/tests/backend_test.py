@@ -70,7 +70,7 @@ class TestAnswer:
         r = session.post(f"{API}/answer", json={"puzzle_id": "trivia-2", "selected": "112", "difficulty": "medium"})
         assert r.status_code == 200, r.text
         data = r.json()
-        assert data["correct"] is True
+        assert data["correct"] == True
         assert data["coins_earned"] == 20
         assert data["correct_answer"] == "112"
 
@@ -78,7 +78,7 @@ class TestAnswer:
         r = session.post(f"{API}/answer", json={"puzzle_id": "trivia-2", "selected": "72", "difficulty": "medium"})
         assert r.status_code == 200
         data = r.json()
-        assert data["correct"] is False
+        assert data["correct"] == False
         assert data["correct_answer"] == "112"
         assert data["coins_earned"] == 0
 
@@ -94,12 +94,12 @@ class TestAnswer:
         r = session.post(f"{API}/answer", json={"puzzle_id": "pattern-0", "selected": json.dumps(seq)})
         assert r.status_code == 200
         data = r.json()
-        assert data["correct"] is True, data
+        assert data["correct"] == True, data
         assert data["coins_earned"] > 0
 
     def test_pattern_incorrect(self, session):
         r = session.post(f"{API}/answer", json={"puzzle_id": "pattern-0", "selected": json.dumps(["red", "blue"])})
-        assert r.json()["correct"] is False
+        assert r.json()["correct"] == False
 
     def test_unknown_puzzle(self, session):
         r = session.post(f"{API}/answer", json={"puzzle_id": "trivia-9999", "selected": "x"})
@@ -179,7 +179,7 @@ class TestShop:
         r = session.post(f"{API}/shop/purchase", json={"player_id": player_id, "pack_id": "coin-medium"})
         assert r.status_code == 200, r.text
         data = r.json()
-        assert data["success"] is True
+        assert data["success"] == True
         # coin-medium: +750 coins, +3 gems
         assert data["player"]["coins"] == before["coins"] + 750
         assert data["player"]["gems"] == before["gems"] + 3
@@ -310,7 +310,7 @@ class TestLoginStreak:
         r = session.get(f"{API}/login-streak/{pid}")
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["can_claim"] is True
+        assert d["can_claim"] == True
         assert d["streak"] == 0
         assert d["reward"] >= 10
 
@@ -320,14 +320,14 @@ class TestLoginStreak:
         r = session.post(f"{API}/login-streak/claim", json={"player_id": pid})
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["already_claimed"] is False
+        assert d["already_claimed"] == False
         assert d["streak"] == 1
         assert d["reward"] == 10
 
         # second claim same day: already_claimed
         r2 = session.post(f"{API}/login-streak/claim", json={"player_id": pid})
         assert r2.status_code == 200
-        assert r2.json()["already_claimed"] is True
+        assert r2.json()["already_claimed"] == True
 
 
 # -------- Homestead (Hay Day / CoC mini-loop) --------
@@ -575,7 +575,7 @@ class TestDefense:
         })
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["survived"] is True
+        assert d["survived"] == True
         assert d["reward"] == 50
         assert d["defense"]["raids_won"] == 1
         assert d["defense"]["raids_lost"] == 0
@@ -594,7 +594,7 @@ class TestDefense:
         })
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["survived"] is False
+        assert d["survived"] == False
         assert d["reward"] == 0
         assert d["defense"]["raids_lost"] == 1
         assert d["defense"]["raids_won"] == 0
@@ -743,14 +743,14 @@ class TestFriendCodes:
         r1 = session.post(f"{API}/friend/add", json={"player_id": a, "friend_code": code_b})
         assert r1.status_code == 200, r1.text
         d1 = r1.json()
-        assert d1["already_added"] is False
+        assert d1["already_added"] == False
         assert d1["friends_count"] == 1
         assert d1["friend"]["player_id"] == b
         # idempotent
         r2 = session.post(f"{API}/friend/add", json={"player_id": a, "friend_code": code_b})
         assert r2.status_code == 200
         d2 = r2.json()
-        assert d2["already_added"] is True
+        assert d2["already_added"] == True
         assert d2["friends_count"] == 1
         # list friends
         lf = session.get(f"{API}/friends/{a}")
@@ -791,8 +791,8 @@ class TestDailyDuel:
         gd = g.json()
         rows = gd["rows"]
         assert len(rows) == 1
-        assert rows[0]["is_me"] is True
-        assert rows[0]["played"] is True
+        assert rows[0]["is_me"] == True
+        assert rows[0]["played"] == True
         assert rows[0]["score"] == 3
         assert rows[0]["total"] == 6
 
@@ -816,8 +816,8 @@ class TestDailyDuel:
         rows = g["rows"]
         assert len(rows) == 2
         # sorted by -score so a comes first
-        assert rows[0]["is_me"] is True and rows[0]["score"] == 4 and rows[0]["played"] is True
-        assert rows[1]["player_id"] == b and rows[1]["played"] is False and rows[1]["score"] == 0
+        assert rows[0]["is_me"] == True and rows[0]["score"] == 4 and rows[0]["played"] == True
+        assert rows[1]["player_id"] == b and rows[1]["played"] == False and rows[1]["score"] == 0
 
 
 # -------- Stray Expedition (Weekly Seasonal Event) --------
@@ -842,12 +842,12 @@ class TestExpedition:
         d = r.json()
         exp = d["expedition"]
         assert exp["xp"] == 0
-        assert exp["completed_today"] is False
+        assert exp["completed_today"] == False
         assert len(exp["tiers"]) == 6
         # Each tier has claimed/available flags
         for t in exp["tiers"]:
-            assert t["claimed"] is False
-            assert t["available"] is False
+            assert t["claimed"] == False
+            assert t["available"] == False
         assert exp["next_tier"]["index"] == 0
         assert exp["next_tier"]["xp_needed"] == 30
         assert exp["active_frame"] == "none"
@@ -879,7 +879,7 @@ class TestExpedition:
         # 3*8 + 10 = 34
         assert d["xp_gained"] == 34
         assert d["total_xp"] == 34
-        assert d["completed_today"] is True
+        assert d["completed_today"] == True
         # Cannot resolve again same day
         r2 = session.post(f"{API}/expedition/today/resolve", json={
             "player_id": pid, "correct": 3, "total": 3
@@ -1000,7 +1000,7 @@ class TestStripeCheckout:
         sd = s.json()
         # New session => unpaid + not credited
         assert sd["payment_status"] in ("unpaid", "no_payment_required", "pending"), sd
-        assert sd["credited"] is False
+        assert sd["credited"] == False
         assert sd["pack_id"] == "coin-medium"
         assert sd["coins"] == 750
         assert sd["gems"] == 3
@@ -1054,7 +1054,7 @@ class TestStripeCheckout:
         # back to Stripe's. Instead, we test the _credit_pack idempotency via direct DB inspection:
         # 1) call _credit_pack-equivalent by toggling and reading
         tx_before = db.payment_transactions.find_one({"session_id": sid})
-        assert tx_before["credited"] is False
+        assert tx_before["credited"] == False
 
         # Simulate webhook completion by directly setting paid + manually invoking the status endpoint
         # which credits only if Stripe reports paid. Since Stripe TEST sandbox returns unpaid until card
@@ -1062,7 +1062,7 @@ class TestStripeCheckout:
         s1 = session.get(f"{API}/checkout/status/{sid}", timeout=30)
         assert s1.status_code == 200
         d1 = s1.json()
-        assert d1["credited"] is False, "Must not credit while Stripe reports unpaid"
+        assert d1["credited"] == False, "Must not credit while Stripe reports unpaid"
 
         after = session.get(f"{API}/player/{pid}").json()
         assert after["coins"] == before["coins"], "Coins must not change when unpaid"

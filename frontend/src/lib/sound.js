@@ -152,13 +152,13 @@ function startProceduralTrack(trackKey) {
         try {
           o.stop();
         } catch {
-          // ignore
+          // Expected: oscillator already stopped — Web Audio API throws on double-stop.
         }
       });
       try {
         master.disconnect();
       } catch {
-        // ignore
+        // Expected: node may already be disconnected.
       }
     },
   };

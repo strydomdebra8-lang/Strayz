@@ -68,7 +68,10 @@ export default function Homestead() {
     try {
       const p = await getPlayer(playerId);
       setPlayer(p);
-    } catch {}
+    } catch (err) {
+      // Non-fatal — HUD will fall back to local state.
+      if (process.env.NODE_ENV !== "production") console.warn("getPlayer (Homestead HUD) failed:", err);
+    }
   };
 
   useEffect(() => {

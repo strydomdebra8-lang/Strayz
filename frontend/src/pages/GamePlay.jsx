@@ -256,8 +256,9 @@ export default function GamePlay() {
         coins: earned,
       });
       setPlayer(final);
-    } catch {
-      // ignore
+    } catch (err) {
+      // Non-fatal: level was completed locally; sync may retry on next load.
+      if (process.env.NODE_ENV !== "production") console.warn("updateProgress failed:", err);
     }
     toast.success(`Level ${levelNum} complete! ${"⭐".repeat(stars)}`);
     sfx.levelUp();
